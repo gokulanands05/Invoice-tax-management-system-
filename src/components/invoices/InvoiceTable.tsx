@@ -20,13 +20,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Search, MoreHorizontal, Eye, Edit, Trash2, Download, Plus } from 'lucide-react';
+import { Search, MoreHorizontal, Eye, Edit, Trash2, Download, Plus, Sparkles } from 'lucide-react';
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
+import { AIExtractorDialog } from './AIExtractorDialog';
 
 export function InvoiceTable() {
   const [searchQuery, setSearchQuery] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
+  const [aiData, setAiData] = useState<Partial<Invoice> | undefined>(undefined);
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,6 +44,12 @@ export function InvoiceTable() {
 
   const handleAddInvoice = (newInvoice: Invoice) => {
     setInvoices([newInvoice, ...invoices]);
+    setAiData(undefined); // Clear AI data after use
+  };
+
+  const handleAIDataExtracted = (data: Partial<Invoice>) => {
+    setAiData(data);
+    setIsCreateOpen(true);
   };
 
   return (
@@ -51,10 +60,20 @@ export function InvoiceTable() {
           <h1 className="text-3xl font-bold font-display">Invoices</h1>
           <p className="text-muted-foreground">Manage and track all your invoices</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Invoice
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => setIsAIOpen(true)}
+            variant="outline"
+            className="gap-2 border-primary/50 text-primary hover:bg-primary/5"
+          >
+            <Sparkles className="h-4 w-4" />
+            Scan with AI
+          </Button>
+          <Button onClick={() => { setAiData(undefined); setIsCreateOpen(true); }} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Invoice
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -128,10 +147,17 @@ export function InvoiceTable() {
         </Table>
       </div>
 
-      <CreateInvoiceDialog 
-        open={isCreateOpen} 
+      <CreateInvoiceDialog
+        open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onSubmit={handleAddInvoice}
+        initialData={aiData}
+      />
+
+      <AIExtractorDialog
+        open={isAIOpen}
+        onOpenChange={setIsAIOpen}
+        onDataExtracted={handleAIDataExtracted}
       />
     </div>
   );

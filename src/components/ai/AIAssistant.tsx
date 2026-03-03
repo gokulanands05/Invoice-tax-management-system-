@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Sparkles, TrendingUp, AlertTriangle, FileText, Lightbulb } from 'lucide-react';
+import { Send, Bot, User, Sparkles, TrendingUp, AlertTriangle, FileText, Lightbulb, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { mockDashboardMetrics, mockInvoices, mockTaxRecords } from '@/data/mockData';
 
+import { chatWithAssistant } from '@/lib/geminiService';
+
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
 }
@@ -23,11 +26,12 @@ const quickActions = [
 ];
 
 export function AIAssistant() {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('groq_api_key') || '');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `Hello! I'm your invoEase AI assistant. I can help you with:\n\n• Analyzing your financial data\n• Tracking pending invoices and taxes\n• Providing business insights\n• Answering questions about your accounts\n\nHow can I assist you today?`,
+      content: `Hello! I'm your invoEase AI assistant powered by Groq. I've analyzed your current financial data. How can I assist you today?`,
       timestamp: new Date(),
     },
   ]);
@@ -41,42 +45,12 @@ export function AIAssistant() {
     }
   }, [messages]);
 
-  const generateResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('revenue') || lowerMessage.includes('earning')) {
-      return `📊 **Revenue Summary**\n\nYour total revenue stands at **$${mockDashboardMetrics.totalRevenue.toLocaleString()}** with a growth of **${mockDashboardMetrics.revenueGrowth}%** compared to last month.\n\n• Pending invoices: $${mockDashboardMetrics.pendingInvoices.toLocaleString()}\n• Invoices this month: ${mockDashboardMetrics.invoicesThisMonth}\n\nWould you like me to break this down further by client or time period?`;
-    }
-    
-    if (lowerMessage.includes('tax') || lowerMessage.includes('pending')) {
-      const pendingTaxes = mockTaxRecords.filter(t => t.status === 'pending');
-      const taxList = pendingTaxes.map(t => `• **${t.type}** (${t.period}): $${t.amount.toLocaleString()} - Due ${t.dueDate.toLocaleDateString()}`).join('\n');
-      return `⚠️ **Pending Taxes**\n\nYou have ${pendingTaxes.length} pending tax obligations totaling **$${mockDashboardMetrics.pendingTaxes.toLocaleString()}**:\n\n${taxList}\n\n💡 **Tip:** The GST for Q4 2024 is due soon. Consider setting aside funds now to avoid last-minute stress.`;
-    }
-    
-    if (lowerMessage.includes('overdue') || lowerMessage.includes('late')) {
-      const overdueInvoices = mockInvoices.filter(i => i.status === 'overdue');
-      if (overdueInvoices.length === 0) {
-        return `✅ Great news! You have no overdue invoices at the moment. Keep up the good work!`;
-      }
-      const invoiceList = overdueInvoices.map(i => `• **${i.invoiceNumber}** - ${i.clientName}: $${i.totalAmount.toLocaleString()}`).join('\n');
-      return `🚨 **Overdue Invoices**\n\nYou have ${overdueInvoices.length} overdue invoice(s):\n\n${invoiceList}\n\n💡 **Recommendation:** Consider sending payment reminders to these clients. Would you like me to draft a follow-up message?`;
-    }
-    
-    if (lowerMessage.includes('tip') || lowerMessage.includes('advice') || lowerMessage.includes('improve') || lowerMessage.includes('cash flow')) {
-      return `💡 **Cash Flow Improvement Tips**\n\n1. **Invoice Promptly**: Send invoices immediately after delivering services\n\n2. **Offer Early Payment Discounts**: 2% discount for payment within 10 days can improve collection rates\n\n3. **Follow Up on Overdue Accounts**: You have $${mockDashboardMetrics.pendingInvoices.toLocaleString()} in pending invoices - timely follow-ups can reduce this\n\n4. **Review Pricing**: Your average invoice is around $${Math.round(mockDashboardMetrics.totalRevenue / mockDashboardMetrics.totalClients).toLocaleString()} per client\n\n5. **Tax Planning**: Set aside ${Math.round((mockDashboardMetrics.pendingTaxes / mockDashboardMetrics.totalRevenue) * 100)}% of revenue for taxes\n\nWould you like more specific advice on any of these areas?`;
-    }
-    
-    if (lowerMessage.includes('client') || lowerMessage.includes('customer')) {
-      return `👥 **Client Overview**\n\nYou currently have **${mockDashboardMetrics.totalClients} active clients** with a total billing of $${mockDashboardMetrics.totalRevenue.toLocaleString()}.\n\n📈 **Key Insights:**\n• Average revenue per client: $${Math.round(mockDashboardMetrics.totalRevenue / mockDashboardMetrics.totalClients).toLocaleString()}\n• Pending payments: $${mockDashboardMetrics.pendingInvoices.toLocaleString()}\n\nWould you like me to identify your top-performing clients or those with outstanding balances?`;
-    }
-
-    return `I'd be happy to help you with that! Based on your current data:\n\n• Total Revenue: $${mockDashboardMetrics.totalRevenue.toLocaleString()}\n• Active Clients: ${mockDashboardMetrics.totalClients}\n• Pending Invoices: $${mockDashboardMetrics.pendingInvoices.toLocaleString()}\n• Pending Taxes: $${mockDashboardMetrics.pendingTaxes.toLocaleString()}\n\nIs there something specific you'd like me to analyze or explain further?`;
-  };
-
   const handleSend = async (messageText?: string) => {
     const text = messageText || input.trim();
-    if (!text) return;
+    if (!text || !apiKey) return;
+
+    // Save API key if changed
+    localStorage.setItem('groq_api_key', apiKey);
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -89,18 +63,57 @@ export function AIAssistant() {
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const response = generateResponse(text);
+    try {
+      const systemContext = `You are an expert financial assistant for "invoEase", an invoice and tax management system. 
+      You have access to the following user data:
+      - Dashboard Metrics: ${JSON.stringify(mockDashboardMetrics)}
+      - Recent Invoices: ${JSON.stringify(mockInvoices.slice(0, 5))}
+      - Pending Tax Records: ${JSON.stringify(mockTaxRecords.filter(t => t.status === 'pending'))}
+      
+      Provide helpful, professional financial advice. Use markdown for formatting (bold, lists, etc). 
+      Be concise but insightful. If the user asks about revenue, refer to the metrics. 
+      If they ask about taxes, look at the tax records.`;
+
+      // Convert message history to Gemini format
+      // Gemini requires the history to start with a 'user' message
+      const history = [];
+      const chatMessages = messages.filter(m => m.role !== 'system');
+
+      // Find the first user message index
+      const firstUserIdx = chatMessages.findIndex(m => m.role === 'user');
+
+      if (firstUserIdx !== -1) {
+        // Only include history starting from the first user message
+        for (let i = firstUserIdx; i < chatMessages.length; i++) {
+          const m = chatMessages[i];
+          history.push({
+            role: m.role === 'user' ? 'user' : 'model' as any,
+            parts: [{ text: m.content }]
+          });
+        }
+      }
+
+      const response = await chatWithAssistant(apiKey, history, text, systemContext);
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response,
+        content: response || "I'm sorry, I couldn't process that request.",
         timestamp: new Date(),
       };
+
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `❌ **Error:** ${error.message || "Failed to connect to Groq. Please check your API key."}`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
   return (
@@ -136,8 +149,8 @@ export function AIAssistant() {
                 >
                   <Avatar className="h-8 w-8 flex-shrink-0">
                     <AvatarFallback className={cn(
-                      message.role === 'assistant' 
-                        ? "bg-primary text-primary-foreground" 
+                      message.role === 'assistant'
+                        ? "bg-primary text-primary-foreground"
                         : "bg-secondary"
                     )}>
                       {message.role === 'assistant' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
@@ -181,21 +194,40 @@ export function AIAssistant() {
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t">
-            <form 
+          <div className="p-4 border-t space-y-3">
+            {!apiKey && (
+              <div className="flex gap-2 items-center p-2 bg-destructive/10 rounded-lg border border-destructive/20 mb-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <p className="text-[10px] text-destructive font-medium uppercase">Enter Groq API Key below to start chatting</p>
+              </div>
+            )}
+            <form
               onSubmit={(e) => { e.preventDefault(); handleSend(); }}
               className="flex gap-2"
             >
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me anything about your finances..."
+                placeholder={apiKey ? "Ask me anything about your finances..." : "Please enter Groq API key first..."}
                 className="flex-1"
+                disabled={!apiKey || isTyping}
               />
-              <Button type="submit" disabled={!input.trim() || isTyping}>
-                <Send className="h-4 w-4" />
+              <Button type="submit" disabled={!input.trim() || isTyping || !apiKey}>
+                {isTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="assistant-api-key" className="text-[10px] uppercase text-muted-foreground whitespace-nowrap">Groq API Key:</Label>
+              <Input
+                id="assistant-api-key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="gsk_..."
+                className="h-7 text-xs font-mono"
+              />
+            </div>
           </div>
         </div>
 

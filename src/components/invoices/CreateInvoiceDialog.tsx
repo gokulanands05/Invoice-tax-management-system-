@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Invoice, InvoiceItem } from '@/types/invoice';
 import { mockClients } from '@/data/mockData';
 import {
@@ -24,15 +24,41 @@ interface CreateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (invoice: Invoice) => void;
+  initialData?: Partial<Invoice>;
 }
 
-export function CreateInvoiceDialog({ open, onOpenChange, onSubmit }: CreateInvoiceDialogProps) {
+export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData }: CreateInvoiceDialogProps) {
   const { toast } = useToast();
   const [selectedClient, setSelectedClient] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<Partial<InvoiceItem>[]>([
     { description: '', quantity: 1, rate: 0 }
   ]);
+
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData && open) {
+      if (initialData.clientName) {
+        const client = mockClients.find(c =>
+          c.company.toLowerCase().includes(initialData.clientName!.toLowerCase()) ||
+          initialData.clientName!.toLowerCase().includes(c.company.toLowerCase())
+        );
+        if (client) setSelectedClient(client.id);
+      }
+
+      if (initialData.dueDate) {
+        setDueDate(new Date(initialData.dueDate).toISOString().split('T')[0]);
+      }
+
+      if (initialData.items && initialData.items.length > 0) {
+        setItems(initialData.items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate
+        })));
+      }
+    }
+  }, [initialData, open]);
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: 1, rate: 0 }]);
@@ -68,7 +94,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit }: CreateInvo
     }
 
     const { subtotal, tax, total } = calculateTotal();
-    
+
     const newInvoice: Invoice = {
       id: Date.now().toString(),
       invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
@@ -91,12 +117,12 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit }: CreateInvo
 
     onSubmit(newInvoice);
     onOpenChange(false);
-    
+
     // Reset form
     setSelectedClient('');
     setDueDate('');
     setItems([{ description: '', quantity: 1, rate: 0 }]);
-    
+
     toast({
       title: "Invoice Created",
       description: `Invoice ${newInvoice.invoiceNumber} has been created successfully.`,
@@ -111,7 +137,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit }: CreateInvo
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Create New Invoice</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
           {/* Client & Date */}
           <div className="grid grid-cols-2 gap-4">
@@ -148,7 +174,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit }: CreateInvo
                 <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
             </div>
-            
+
             <div className="space-y-3">
               {items.map((item, index) => (
                 <div key={index} className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
