@@ -25,6 +25,7 @@ import { extractInvoiceData, fileToBase64, ExtractedInvoiceData } from '@/lib/ge
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Invoice, InvoiceItem } from '@/types/invoice';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 interface AIExtractorDialogProps {
     open: boolean;
@@ -40,7 +41,6 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
     const [preview, setPreview] = useState<string | null>(null);
     const [isExtracting, setIsExtracting] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractedInvoiceData | null>(null);
-    const [apiKey, setApiKey] = useState(localStorage.getItem('groq_api_key') || '');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -56,32 +56,22 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
 
     const handleExtract = async () => {
         if (!file) return;
-        if (!apiKey) {
-            toast({
-                title: "Groq Key Required",
-                description: "Please enter your Groq API key to use the extraction feature.",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        // Save API key
-        localStorage.setItem('groq_api_key', apiKey);
 
         setIsExtracting(true);
         try {
             const { base64, mimeType } = await fileToBase64(file);
-            const data = await extractInvoiceData(base64, mimeType, apiKey);
+            const data = await extractInvoiceData(base64, mimeType);
             setExtractedData(data);
             toast({
                 title: "Extraction Complete",
-                description: `Successfully extracted data from "${data.vendorName || 'the invoice'}"`,
+                description: `Successfully extracted data from "${data.vendorName || 'the bill'}"`,
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
+            const message = error instanceof Error ? error.message : "An error occurred while processing the invoice.";
             toast({
                 title: "Extraction Failed",
-                description: error.message || "An error occurred while processing the invoice.",
+                description: message,
                 variant: "destructive"
             });
         } finally {
@@ -129,10 +119,10 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl font-display">
                         <Sparkles className="h-6 w-6 text-primary" />
-                        AI Invoice Scanner
+                        AI Bill Scanner
                     </DialogTitle>
                     <DialogDescription>
-                        Upload an invoice image or PDF and Groq AI will automatically extract the details for you.
+                        Upload a bill or invoice image and Groq AI will extract the details for your audit workflow.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -178,20 +168,8 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="apiKey" className="text-xs text-muted-foreground">Groq API Key (Stored locally)</Label>
-                            <Input
-                                id="apiKey"
-                                type="password"
-                                placeholder="gsk_..."
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                className="font-mono text-sm"
-                            />
-                        </div>
-
                         <Button
-                            disabled={!file || isExtracting || !apiKey}
+                            disabled={!file || isExtracting}
                             onClick={handleExtract}
                             className="w-full h-12 text-lg shadow-lg shadow-primary/20"
                         >
@@ -284,7 +262,7 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
                                                         <tr key={idx} className="border-b last:border-0">
                                                             <td className="p-2 line-clamp-1">{item.description}</td>
                                                             <td className="p-2 text-right">{item.quantity}</td>
-                                                            <td className="p-2 text-right">${item.unitPrice.toLocaleString()}</td>
+                                                            <td className="p-2 text-right">{formatCurrencyINR(item.unitPrice)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -295,15 +273,15 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
                                     <div className="p-3 bg-primary/5 rounded-lg space-y-2">
                                         <div className="flex justify-between text-xs">
                                             <span className="text-muted-foreground">Subtotal</span>
-                                            <span>${extractedData.subtotal.toLocaleString()}</span>
+                                            <span>{formatCurrencyINR(extractedData.subtotal)}</span>
                                         </div>
                                         <div className="flex justify-between text-xs">
                                             <span className="text-muted-foreground">Tax ({extractedData.taxRate}%)</span>
-                                            <span>${extractedData.taxAmount.toLocaleString()}</span>
+                                            <span>{formatCurrencyINR(extractedData.taxAmount)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm font-bold border-t pt-2 mt-1">
                                             <span>Total</span>
-                                            <span className="text-primary">${extractedData.totalAmount.toLocaleString()} {extractedData.currency}</span>
+                                            <span className="text-primary">{formatCurrencyINR(extractedData.totalAmount)} {extractedData.currency}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -321,7 +299,7 @@ export function AIExtractorDialog({ open, onOpenChange, onDataExtracted }: AIExt
                         onClick={handleConfirm}
                         className="bg-success hover:bg-success/90 text-white"
                     >
-                        Import Data Into Invoice
+                        Import Data Into Bill
                     </Button>
                 </DialogFooter>
             </DialogContent>

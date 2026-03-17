@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { mockReports, revenueChartData, taxDistributionData, mockClients } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -27,14 +26,17 @@ import {
 import { format } from 'date-fns';
 import { Download, Plus, FileText, TrendingUp, Users, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCompactCurrencyINR, formatCurrencyINR } from '@/lib/formatters';
 
 const COLORS = ['hsl(239, 84%, 67%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(280, 84%, 60%)', 'hsl(0, 84%, 60%)'];
 
 export function ReportsDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('6months');
   const { toast } = useToast();
+  const { reports, revenueChartData, complianceDistributionData, clients } = useAuditData();
 
-  const clientRevenueData = mockClients.map(client => ({
+  const clientRevenueData = clients.map(client => ({
     name: client.company.split(' ')[0],
     revenue: client.totalBilled,
     pending: client.pendingAmount,
@@ -52,8 +54,8 @@ export function ReportsDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-display">Reports</h1>
-          <p className="text-muted-foreground">Analytics and insights for your business</p>
+          <h1 className="text-3xl font-bold font-display">Audit Reports</h1>
+          <p className="text-muted-foreground">Auditor-focused analytics for collections, compliance, and client exposure</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -69,7 +71,7 @@ export function ReportsDashboard() {
           </Select>
           <Button onClick={handleGenerateReport} className="gap-2">
             <Plus className="h-4 w-4" />
-            Generate Report
+            Generate Snapshot
           </Button>
         </div>
       </div>
@@ -85,7 +87,7 @@ export function ReportsDashboard() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold font-display">Revenue Trend</h3>
-                <p className="text-sm text-muted-foreground">Monthly revenue analysis</p>
+                <p className="text-sm text-muted-foreground">Monthly collections analysis</p>
               </div>
             </div>
             <Button variant="outline" size="sm">
@@ -98,14 +100,14 @@ export function ReportsDashboard() {
               <LineChart data={revenueChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
                 <XAxis dataKey="month" stroke="hsl(220, 9%, 46%)" fontSize={12} />
-                <YAxis stroke="hsl(220, 9%, 46%)" fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} />
+                <YAxis stroke="hsl(220, 9%, 46%)" fontSize={12} tickFormatter={(value) => formatCompactCurrencyINR(value)} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(0, 0%, 100%)',
                     border: '1px solid hsl(220, 13%, 91%)',
                     borderRadius: '12px',
                   }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                  formatter={(value: number) => [formatCurrencyINR(value), 'Revenue']}
                 />
                 <Line 
                   type="monotone" 
@@ -127,8 +129,8 @@ export function ReportsDashboard() {
                 <Receipt className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold font-display">Tax Breakdown</h3>
-                <p className="text-sm text-muted-foreground">Distribution by type</p>
+                <h3 className="text-lg font-semibold font-display">Compliance Breakdown</h3>
+                <p className="text-sm text-muted-foreground">Distribution by statutory category</p>
               </div>
             </div>
             <Button variant="outline" size="sm">
@@ -140,7 +142,7 @@ export function ReportsDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={taxDistributionData}
+                  data={complianceDistributionData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -148,11 +150,11 @@ export function ReportsDashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {taxDistributionData.map((entry, index) => (
+                  {complianceDistributionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Amount']} />
+                <Tooltip formatter={(value: number) => [formatCurrencyINR(value), 'Amount']} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -167,8 +169,8 @@ export function ReportsDashboard() {
                 <Users className="h-5 w-5 text-success" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold font-display">Client Revenue</h3>
-                <p className="text-sm text-muted-foreground">Revenue by client</p>
+                <h3 className="text-lg font-semibold font-display">Client Exposure</h3>
+                <p className="text-sm text-muted-foreground">Billed and outstanding amounts by client</p>
               </div>
             </div>
             <Button variant="outline" size="sm">
@@ -180,11 +182,11 @@ export function ReportsDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={clientRevenueData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                <XAxis type="number" stroke="hsl(220, 9%, 46%)" fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} />
+                <XAxis type="number" stroke="hsl(220, 9%, 46%)" fontSize={12} tickFormatter={(value) => formatCompactCurrencyINR(value)} />
                 <YAxis dataKey="name" type="category" stroke="hsl(220, 9%, 46%)" fontSize={12} width={80} />
-                <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, '']} />
-                <Bar dataKey="revenue" fill="hsl(160, 84%, 39%)" radius={[0, 4, 4, 0]} name="Paid" />
-                <Bar dataKey="pending" fill="hsl(38, 92%, 50%)" radius={[0, 4, 4, 0]} name="Pending" />
+                <Tooltip formatter={(value: number) => [formatCurrencyINR(value), '']} />
+                <Bar dataKey="revenue" fill="hsl(160, 84%, 39%)" radius={[0, 4, 4, 0]} name="Billed" />
+                <Bar dataKey="pending" fill="hsl(38, 92%, 50%)" radius={[0, 4, 4, 0]} name="Outstanding" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -205,7 +207,7 @@ export function ReportsDashboard() {
           </div>
           
           <div className="space-y-3">
-            {mockReports.map((report) => (
+            {reports.map((report) => (
               <div 
                 key={report.id}
                 className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"

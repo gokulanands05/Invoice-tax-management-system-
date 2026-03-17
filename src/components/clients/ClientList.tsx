@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { mockClients } from '@/data/mockData';
 import { Client } from '@/types/invoice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Search, MoreHorizontal, Eye, Edit, Trash2, Plus, Mail, Phone, FileText } from 'lucide-react';
 import { CreateClientDialog } from './CreateClientDialog';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 export function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [clients, setClients] = useState<Client[]>(mockClients);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const { clients, addClient } = useAuditData();
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -26,7 +27,7 @@ export function ClientList() {
   );
 
   const handleAddClient = (newClient: Client) => {
-    setClients([newClient, ...clients]);
+    void addClient(newClient);
   };
 
   return (
@@ -35,7 +36,7 @@ export function ClientList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold font-display">Clients</h1>
-          <p className="text-muted-foreground">Manage your client relationships</p>
+          <p className="text-muted-foreground">Manage organisations under audit review</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -106,12 +107,12 @@ export function ClientList() {
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Total Billed</p>
-                <p className="font-semibold">${client.totalBilled.toLocaleString()}</p>
+                <p className="font-semibold">{formatCurrencyINR(client.totalBilled)}</p>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xs text-muted-foreground">Outstanding</p>
                 <p className={client.pendingAmount > 0 ? "font-semibold text-warning" : "font-semibold text-success"}>
-                  ${client.pendingAmount.toLocaleString()}
+                  {formatCurrencyINR(client.pendingAmount)}
                 </p>
               </div>
               <div className="flex items-center gap-1">

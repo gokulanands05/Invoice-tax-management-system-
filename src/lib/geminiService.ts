@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 export interface ExtractedLineItem {
     description: string;
     quantity: number;
@@ -40,7 +38,7 @@ Extract the following fields:
 - lineItems: Array of items with { description, quantity, unitPrice, amount }
 - subtotal: Sum before tax
 - taxRate: Tax percentage (e.g., 15 for 15%)
-- taxAmount: Tax dollar amount
+- taxAmount: Tax amount
 - totalAmount: Final total including tax
 - currency: Currency code (e.g., USD, EUR, INR)
 - notes: Any payment terms or notes
@@ -51,42 +49,28 @@ Return ONLY a valid JSON object with these exact fields. Do not include markdown
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
 
-function createGroqClient(apiKey: string) {
-    return new OpenAI({
-        apiKey: apiKey,
-        baseURL: "https://api.groq.com/openai/v1",
-        dangerouslyAllowBrowser: true,
-    });
-}
-
 export async function extractInvoiceData(
     imageBase64: string,
-    mimeType: string,
-    apiKey: string
+    mimeType: string
 ): Promise<ExtractedInvoiceData> {
-    const client = createGroqClient(apiKey);
-
-    const response = await client.chat.completions.create({
-        model: GROQ_VISION_MODEL,
-        messages: [
-            {
-                role: "user",
-                content: [
-                    { type: "text", text: EXTRACTION_PROMPT },
-                    {
-                        type: "image_url",
-                        image_url: {
-                            url: `data:${mimeType};base64,${imageBase64}`,
-                        },
-                    },
-                ],
-            },
-        ],
-        temperature: 0.1,
-        max_tokens: 4096,
+    const response = await fetch('/api/groq/extract', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+            model: GROQ_VISION_MODEL,
+            imageBase64,
+            mimeType,
+            prompt: EXTRACTION_PROMPT,
+        }),
     });
 
-    const text = response.choices[0]?.message?.content || "";
+    if (!response.ok) {
+        const details = await response.text().catch(() => '');
+        throw new Error(details || `Groq extraction failed (${response.status})`);
+    }
+
+    const json = await response.json();
+    const text = json?.choices?.[0]?.message?.content || "";
     const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     try {
@@ -98,35 +82,39 @@ export async function extractInvoiceData(
 }
 
 export async function chatWithAssistant(
-    apiKey: string,
     history: { role: "user" | "model", parts: { text: string }[] }[],
     userMessage: string,
     systemContext: string
 ) {
-    const client = createGroqClient(apiKey);
-
-    // Convert the Gemini-style history to OpenAI/Groq format
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: systemContext },
-    ];
+    const messages = [{ role: "system" as const, content: systemContext }];
 
     for (const msg of history) {
         messages.push({
-            role: msg.role === "model" ? "assistant" : "user",
+            role: msg.role === "model" ? ("assistant" as const) : ("user" as const),
             content: msg.parts.map(p => p.text).join("\n"),
         });
     }
 
-    messages.push({ role: "user", content: userMessage });
+    messages.push({ role: "user" as const, content: userMessage });
 
-    const response = await client.chat.completions.create({
-        model: GROQ_MODEL,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 2048,
+    const response = await fetch('/api/groq/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages,
+            temperature: 0.7,
+            max_tokens: 2048,
+        }),
     });
 
-    return response.choices[0]?.message?.content || "";
+    if (!response.ok) {
+        const details = await response.text().catch(() => '');
+        throw new Error(details || `Groq chat failed (${response.status})`);
+    }
+
+    const json = await response.json();
+    return json?.choices?.[0]?.message?.content || "";
 }
 
 export function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {

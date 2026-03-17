@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { mockInvoices } from '@/data/mockData';
 import { Invoice } from '@/types/invoice';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,13 +22,15 @@ import { format } from 'date-fns';
 import { Search, MoreHorizontal, Eye, Edit, Trash2, Download, Plus, Sparkles } from 'lucide-react';
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { AIExtractorDialog } from './AIExtractorDialog';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 export function InvoiceTable() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [aiData, setAiData] = useState<Partial<Invoice> | undefined>(undefined);
+  const { invoices, addInvoice } = useAuditData();
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -43,7 +44,7 @@ export function InvoiceTable() {
   };
 
   const handleAddInvoice = (newInvoice: Invoice) => {
-    setInvoices([newInvoice, ...invoices]);
+    void addInvoice(newInvoice);
     setAiData(undefined); // Clear AI data after use
   };
 
@@ -57,8 +58,8 @@ export function InvoiceTable() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-display">Invoices</h1>
-          <p className="text-muted-foreground">Manage and track all your invoices</p>
+          <h1 className="text-3xl font-bold font-display">Audit Engagement Bills</h1>
+          <p className="text-muted-foreground">Manage billing records and client engagement collections</p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -71,7 +72,7 @@ export function InvoiceTable() {
           </Button>
           <Button onClick={() => { setAiData(undefined); setIsCreateOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" />
-            New Invoice
+            New Bill
           </Button>
         </div>
       </div>
@@ -81,7 +82,7 @@ export function InvoiceTable() {
         <div className="relative w-80">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search invoices..."
+            placeholder="Search engagement bills..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -94,10 +95,10 @@ export function InvoiceTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice #</TableHead>
+              <TableHead>Bill #</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>Tax</TableHead>
+              <TableHead>GST/Tax</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Due Date</TableHead>
@@ -109,9 +110,9 @@ export function InvoiceTable() {
               <TableRow key={invoice.id} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                 <TableCell>{invoice.clientName}</TableCell>
-                <TableCell>${invoice.amount.toLocaleString()}</TableCell>
-                <TableCell>${invoice.taxAmount.toLocaleString()}</TableCell>
-                <TableCell className="font-semibold">${invoice.totalAmount.toLocaleString()}</TableCell>
+                <TableCell>{formatCurrencyINR(invoice.amount)}</TableCell>
+                <TableCell>{formatCurrencyINR(invoice.taxAmount)}</TableCell>
+                <TableCell className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</TableCell>
                 <TableCell>
                   <Badge className={cn("text-xs", statusStyles[invoice.status])}>
                     {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}

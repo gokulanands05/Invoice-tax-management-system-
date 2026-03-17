@@ -1,12 +1,15 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { revenueChartData } from '@/data/mockData';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCompactCurrencyINR, formatCurrencyINR } from '@/lib/formatters';
 
 export function RevenueChart() {
+  const { revenueChartData } = useAuditData();
+
   return (
     <div className="glass-card p-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold font-display">Revenue Overview</h3>
-        <p className="text-sm text-muted-foreground">Monthly revenue for the last 6 months</p>
+        <p className="text-sm text-muted-foreground">Monthly collections across your audit engagements</p>
       </div>
       
       <div className="h-[300px]">
@@ -31,7 +34,7 @@ export function RevenueChart() {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value / 1000}k`}
+              tickFormatter={(value) => formatCompactCurrencyINR(value)}
             />
             <Tooltip
               contentStyle={{
@@ -40,7 +43,7 @@ export function RevenueChart() {
                 borderRadius: '12px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
               }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+              formatter={(value: number) => [formatCurrencyINR(value), 'Revenue']}
             />
             <Area
               type="monotone"

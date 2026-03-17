@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { mockTaxRecords } from '@/data/mockData';
-import { TaxRecord } from '@/types/invoice';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,10 +18,13 @@ import { cn } from '@/lib/utils';
 import { format, differenceInDays } from 'date-fns';
 import { MoreHorizontal, CheckCircle, FileText, AlertTriangle, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 export function TaxRecordsList() {
-  const [taxes, setTaxes] = useState<TaxRecord[]>(mockTaxRecords);
+  const { complianceRecords, updateComplianceStatus } = useAuditData();
   const { toast } = useToast();
+  const taxes = complianceRecords;
 
   const statusStyles = {
     pending: 'status-pending',
@@ -33,26 +33,18 @@ export function TaxRecordsList() {
   };
 
   const handleMarkAsPaid = (taxId: string) => {
-    setTaxes(taxes.map(tax => 
-      tax.id === taxId 
-        ? { ...tax, status: 'paid' as const, paidDate: new Date() }
-        : tax
-    ));
+    void updateComplianceStatus(taxId, 'paid');
     toast({
-      title: "Tax Marked as Paid",
-      description: "The tax record has been updated.",
+      title: "Record Marked as Paid",
+      description: "The compliance record has been updated.",
     });
   };
 
   const handleMarkAsFiled = (taxId: string) => {
-    setTaxes(taxes.map(tax => 
-      tax.id === taxId 
-        ? { ...tax, status: 'filed' as const, filedDate: new Date() }
-        : tax
-    ));
+    void updateComplianceStatus(taxId, 'filed');
     toast({
-      title: "Tax Marked as Filed",
-      description: "The tax record has been updated.",
+      title: "Record Marked as Filed",
+      description: "The compliance record has been updated.",
     });
   };
 
@@ -64,12 +56,12 @@ export function TaxRecordsList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-display">Tax Records</h1>
-          <p className="text-muted-foreground">Track and manage your tax obligations</p>
+          <h1 className="text-3xl font-bold font-display">Compliance Records</h1>
+          <p className="text-muted-foreground">Track statutory deadlines, filings, and audit follow-ups</p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Add Tax Record
+          Add Compliance Record
         </Button>
       </div>
 
@@ -79,8 +71,8 @@ export function TaxRecordsList() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-8 w-8 text-warning" />
             <div>
-              <p className="text-sm text-muted-foreground">Pending Taxes</p>
-              <p className="text-2xl font-bold font-display">${totalPending.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Pending Exposure</p>
+              <p className="text-2xl font-bold font-display">{formatCurrencyINR(totalPending)}</p>
             </div>
           </div>
         </div>
@@ -109,7 +101,7 @@ export function TaxRecordsList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tax Type</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Period</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Due Date</TableHead>
@@ -132,7 +124,7 @@ export function TaxRecordsList() {
                     </div>
                   </TableCell>
                   <TableCell>{tax.period}</TableCell>
-                  <TableCell className="font-semibold">${tax.amount.toLocaleString()}</TableCell>
+                  <TableCell className="font-semibold">{formatCurrencyINR(tax.amount)}</TableCell>
                   <TableCell>
                     <span className={cn(isUrgent && "text-warning font-medium")}>
                       {format(tax.dueDate, 'MMM d, yyyy')}

@@ -73,14 +73,14 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-card">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Add New Client</DialogTitle>
+          <DialogTitle className="font-display text-2xl">Add Audit Client</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Contact Name *</Label>
             <Input
-              placeholder="John Smith"
+              placeholder="Asha Nair"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
             />
@@ -89,7 +89,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
           <div className="space-y-2">
             <Label>Company Name *</Label>
             <Input
-              placeholder="Acme Corporation"
+              placeholder="Acme Manufacturing Pvt Ltd"
               value={formData.company}
               onChange={(e) => handleChange('company', e.target.value)}
             />
@@ -99,7 +99,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
             <Label>Email *</Label>
             <Input
               type="email"
-              placeholder="john@acme.com"
+              placeholder="audit@acme.in"
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
             />
@@ -108,7 +108,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
           <div className="space-y-2">
             <Label>Phone</Label>
             <Input
-              placeholder="+1 (555) 123-4567"
+              placeholder="+91 98765 43210"
               value={formData.phone}
               onChange={(e) => handleChange('phone', e.target.value)}
             />
@@ -117,7 +117,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
           <div className="space-y-2">
             <Label>Address</Label>
             <Textarea
-              placeholder="123 Business Ave, City, State, ZIP"
+              placeholder="Chennai, Tamil Nadu, India"
               value={formData.address}
               onChange={(e) => handleChange('address', e.target.value)}
               rows={2}

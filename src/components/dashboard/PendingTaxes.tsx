@@ -1,20 +1,21 @@
-import { mockTaxRecords } from '@/data/mockData';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format, differenceInDays } from 'date-fns';
 import { ArrowRight, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 export function PendingTaxes() {
-  const pendingTaxes = mockTaxRecords.filter(tax => tax.status === 'pending');
+  const { complianceRecords } = useAuditData();
+  const pendingTaxes = complianceRecords.filter((tax) => tax.status === 'pending');
 
   return (
     <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold font-display">Pending Taxes</h3>
-          <p className="text-sm text-muted-foreground">Upcoming tax deadlines</p>
+          <h3 className="text-lg font-semibold font-display">Pending Compliance Actions</h3>
+          <p className="text-sm text-muted-foreground">Upcoming statutory and audit deadlines</p>
         </div>
         <Link to="/taxes">
           <Button variant="ghost" size="sm" className="text-primary">
@@ -48,7 +49,7 @@ export function PendingTaxes() {
                 </div>
               </div>
               <div className="text-right space-y-1">
-                <p className="font-semibold">${tax.amount.toLocaleString()}</p>
+                <p className="font-semibold">{formatCurrencyINR(tax.amount)}</p>
                 <p className={cn(
                   "text-xs",
                   isUrgent ? "text-warning font-medium" : "text-muted-foreground"

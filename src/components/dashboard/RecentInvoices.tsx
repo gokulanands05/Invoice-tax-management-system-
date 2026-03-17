@@ -1,13 +1,14 @@
-import { mockInvoices } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 export function RecentInvoices() {
-  const recentInvoices = mockInvoices.slice(0, 5);
+  const { invoices } = useAuditData();
+  const recentInvoices = invoices.slice(0, 5);
 
   const statusStyles = {
     paid: 'status-paid',
@@ -19,8 +20,8 @@ export function RecentInvoices() {
     <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold font-display">Recent Invoices</h3>
-          <p className="text-sm text-muted-foreground">Latest invoice activity</p>
+          <h3 className="text-lg font-semibold font-display">Recent Engagement Bills</h3>
+          <p className="text-sm text-muted-foreground">Latest client billing activity</p>
         </div>
         <Link to="/invoices">
           <Button variant="ghost" size="sm" className="text-primary">
@@ -40,7 +41,7 @@ export function RecentInvoices() {
               <p className="text-sm text-muted-foreground">{invoice.clientName}</p>
             </div>
             <div className="text-right space-y-1">
-              <p className="font-semibold">${invoice.totalAmount.toLocaleString()}</p>
+              <p className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</p>
               <Badge className={cn("text-xs", statusStyles[invoice.status])}>
                 {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
               </Badge>

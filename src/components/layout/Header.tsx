@@ -11,21 +11,37 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuditData } from '@/contexts/AuditDataContext';
 
 export function Header() {
+  const { signOut, user } = useAuth();
+  const { source } = useAuditData();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-6">
       {/* Search */}
       <div className="relative w-96">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search invoices, clients, reports..."
+          placeholder="Search engagements, clients, reports..."
           className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1"
         />
       </div>
 
       {/* Right side */}
       <div className="flex items-center gap-4">
+        <Badge variant="secondary" className="hidden sm:flex">
+          {source === 'live' ? 'Realtime live' : 'Demo mode'}
+        </Badge>
+
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -40,16 +56,16 @@ export function Header() {
             <DropdownMenuLabel>Notifications</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Invoice Overdue</span>
-              <span className="text-sm text-muted-foreground">INV-2024-004 from BuildMax is overdue</span>
+              <span className="font-medium">Engagement overdue</span>
+              <span className="text-sm text-muted-foreground">A billed engagement needs follow-up</span>
             </DropdownMenuItem>
             <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Tax Due Soon</span>
-              <span className="text-sm text-muted-foreground">GST for Q4 2024 due in 3 days</span>
+              <span className="font-medium">Compliance deadline</span>
+              <span className="text-sm text-muted-foreground">A statutory filing is due soon</span>
             </DropdownMenuItem>
             <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Payment Received</span>
-              <span className="text-sm text-muted-foreground">TechCorp paid $9,775.00</span>
+              <span className="font-medium">Collection received</span>
+              <span className="text-sm text-muted-foreground">A client payment was recorded in INR</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -60,10 +76,10 @@ export function Header() {
             <Button variant="ghost" className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  AK
+                  {(user?.email?.[0] || 'A').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="font-medium">Admin</span>
+              <span className="font-medium">{user?.email?.split('@')[0] || 'Auditor'}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-popover">
@@ -75,7 +91,7 @@ export function Header() {
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer">Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-destructive">Logout</DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer text-destructive" onClick={handleLogout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

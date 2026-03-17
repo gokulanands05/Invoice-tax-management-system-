@@ -15,12 +15,12 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: FileText, label: 'Invoices', path: '/invoices' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: FileText, label: 'Engagement Bills', path: '/invoices' },
   { icon: Users, label: 'Clients', path: '/clients' },
-  { icon: Receipt, label: 'Tax Records', path: '/taxes' },
-  { icon: BarChart3, label: 'Reports', path: '/reports' },
-  { icon: Bot, label: 'AI Assistant', path: '/ai-assistant' },
+  { icon: Receipt, label: 'Compliance', path: '/taxes' },
+  { icon: BarChart3, label: 'Audit Reports', path: '/reports' },
+  { icon: Bot, label: 'Auditor AI', path: '/ai-assistant' },
 ];
 
 export function Sidebar() {
@@ -43,7 +43,7 @@ export function Sidebar() {
                 <Sparkles className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="font-display text-xl font-bold text-sidebar-foreground">
-                invoEase
+                AuditEase
               </span>
             </div>
           )}

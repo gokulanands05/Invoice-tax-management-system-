@@ -52,7 +52,7 @@ export interface Report {
   title: string;
   type: 'revenue' | 'tax' | 'client' | 'invoice';
   generatedAt: Date;
-  data: any;
+  data: unknown;
 }
 
 export interface DashboardMetrics {

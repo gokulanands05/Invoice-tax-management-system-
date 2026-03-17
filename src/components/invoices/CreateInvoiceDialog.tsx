@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Invoice, InvoiceItem } from '@/types/invoice';
-import { mockClients } from '@/data/mockData';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 interface CreateInvoiceDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ interface CreateInvoiceDialogProps {
 
 export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData }: CreateInvoiceDialogProps) {
   const { toast } = useToast();
+  const { clients } = useAuditData();
   const [selectedClient, setSelectedClient] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<Partial<InvoiceItem>[]>([
@@ -39,7 +41,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
   useEffect(() => {
     if (initialData && open) {
       if (initialData.clientName) {
-        const client = mockClients.find(c =>
+        const client = clients.find(c =>
           c.company.toLowerCase().includes(initialData.clientName!.toLowerCase()) ||
           initialData.clientName!.toLowerCase().includes(c.company.toLowerCase())
         );
@@ -58,7 +60,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
         })));
       }
     }
-  }, [initialData, open]);
+  }, [clients, initialData, open]);
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: 1, rate: 0 }]);
@@ -83,7 +85,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
   };
 
   const handleSubmit = () => {
-    const client = mockClients.find(c => c.id === selectedClient);
+    const client = clients.find(c => c.id === selectedClient);
     if (!client || !dueDate) {
       toast({
         title: "Error",
@@ -125,7 +127,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
 
     toast({
       title: "Invoice Created",
-      description: `Invoice ${newInvoice.invoiceNumber} has been created successfully.`,
+      description: `Bill ${newInvoice.invoiceNumber} has been created successfully.`,
     });
   };
 
@@ -135,7 +137,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-card">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Create New Invoice</DialogTitle>
+          <DialogTitle className="font-display text-2xl">Create Engagement Bill</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -148,7 +150,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  {mockClients.map((client) => (
+                  {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.company}
                     </SelectItem>
@@ -169,7 +171,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
           {/* Line Items */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Line Items</Label>
+              <Label>Bill Items</Label>
               <Button type="button" variant="outline" size="sm" onClick={addItem}>
                 <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
@@ -199,7 +201,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
                     className="w-28"
                   />
                   <span className="w-24 text-right font-medium">
-                    ${((item.quantity || 0) * (item.rate || 0)).toLocaleString()}
+                    {formatCurrencyINR((item.quantity || 0) * (item.rate || 0))}
                   </span>
                   {items.length > 1 && (
                     <Button
@@ -221,15 +223,15 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
           <div className="border-t pt-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>${subtotal.toLocaleString()}</span>
+              <span>{formatCurrencyINR(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (15%)</span>
-              <span>${tax.toLocaleString()}</span>
+              <span className="text-muted-foreground">GST / Tax (15%)</span>
+              <span>{formatCurrencyINR(tax)}</span>
             </div>
             <div className="flex justify-between text-lg font-semibold">
               <span>Total</span>
-              <span className="gradient-text">${total.toLocaleString()}</span>
+              <span className="gradient-text">{formatCurrencyINR(total)}</span>
             </div>
           </div>
 
@@ -239,7 +241,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
               Cancel
             </Button>
             <Button onClick={handleSubmit}>
-              Create Invoice
+              Create Bill
             </Button>
           </div>
         </div>

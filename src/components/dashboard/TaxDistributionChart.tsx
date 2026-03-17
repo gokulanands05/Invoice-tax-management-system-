@@ -1,21 +1,24 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { taxDistributionData } from '@/data/mockData';
+import { useAuditData } from '@/contexts/AuditDataContext';
+import { formatCurrencyINR } from '@/lib/formatters';
 
 const COLORS = ['hsl(239, 84%, 67%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(280, 84%, 60%)'];
 
 export function TaxDistributionChart() {
+  const { complianceDistributionData } = useAuditData();
+
   return (
     <div className="glass-card p-6">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold font-display">Tax Distribution</h3>
-        <p className="text-sm text-muted-foreground">Breakdown by tax type</p>
+        <h3 className="text-lg font-semibold font-display">Compliance Distribution</h3>
+        <p className="text-sm text-muted-foreground">Exposure split by statutory category</p>
       </div>
       
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={taxDistributionData}
+              data={complianceDistributionData}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -23,7 +26,7 @@ export function TaxDistributionChart() {
               paddingAngle={5}
               dataKey="value"
             >
-              {taxDistributionData.map((entry, index) => (
+              {complianceDistributionData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={COLORS[index % COLORS.length]}
@@ -38,7 +41,7 @@ export function TaxDistributionChart() {
                 borderRadius: '12px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
               }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, 'Amount']}
+              formatter={(value: number) => [formatCurrencyINR(value), 'Amount']}
             />
             <Legend 
               verticalAlign="bottom" 
