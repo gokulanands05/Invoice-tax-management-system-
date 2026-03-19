@@ -64,3 +64,11 @@ export interface DashboardMetrics {
   invoicesThisMonth: number;
   taxesDueThisMonth: number;
 }
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  description: string;
+  createdAt: Date;
+  read: boolean;
+}

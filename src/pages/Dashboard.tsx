@@ -16,7 +16,7 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold font-display">Auditor Dashboard</h1>
         <p className="text-muted-foreground">
           Review financial exposure, audit engagements, and compliance actions in one place.
-          {source === 'demo' ? ' Demo data is showing until Supabase is fully connected.' : ''}
+          {source !== 'live' ? ' Live data is unavailable until Supabase is connected.' : ''}
         </p>
       </div>
 

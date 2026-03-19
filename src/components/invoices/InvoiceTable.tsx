@@ -24,13 +24,15 @@ import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { AIExtractorDialog } from './AIExtractorDialog';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
+import { useToast } from '@/hooks/use-toast';
 
 export function InvoiceTable() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [aiData, setAiData] = useState<Partial<Invoice> | undefined>(undefined);
-  const { invoices, addInvoice } = useAuditData();
+  const { invoices, addInvoice, deleteInvoice } = useAuditData();
+  const { toast } = useToast();
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,6 +53,23 @@ export function InvoiceTable() {
   const handleAIDataExtracted = (data: Partial<Invoice>) => {
     setAiData(data);
     setIsCreateOpen(true);
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      await deleteInvoice(invoiceId);
+      toast({
+        title: 'Bill deleted',
+        description: `${invoiceNumber} has been removed.`,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to delete bill.';
+      toast({ title: 'Delete failed', description: message, variant: 'destructive' });
+    }
+  };
+
+  const showComingSoon = () => {
+    toast({ title: 'Coming soon', description: 'This action is not implemented yet.' });
   };
 
   return (
@@ -127,16 +146,21 @@ export function InvoiceTable() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-popover">
-                      <DropdownMenuItem className="cursor-pointer">
+                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
                         <Eye className="mr-2 h-4 w-4" /> View
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">
+                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">
+                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
                         <Download className="mr-2 h-4 w-4" /> Download
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer text-destructive">
+                      <DropdownMenuItem
+                        className="cursor-pointer text-destructive"
+                        onClick={() => {
+                          void handleDeleteInvoice(invoice.id, invoice.invoiceNumber);
+                        }}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>

@@ -25,41 +25,47 @@ export function PendingTaxes() {
       </div>
       
       <div className="space-y-4">
-        {pendingTaxes.map((tax) => {
-          const daysUntilDue = differenceInDays(tax.dueDate, new Date());
-          const isUrgent = daysUntilDue <= 7;
-          
-          return (
-            <div 
-              key={tax.id}
-              className={cn(
-                "flex items-center justify-between p-4 rounded-lg transition-colors",
-                isUrgent 
-                  ? "bg-warning/10 border border-warning/20" 
-                  : "bg-secondary/50 hover:bg-secondary"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                {isUrgent && (
-                  <AlertTriangle className="h-5 w-5 text-warning" />
+        {pendingTaxes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            No pending compliance actions right now.
+          </div>
+        ) : (
+          pendingTaxes.map((tax) => {
+            const daysUntilDue = differenceInDays(tax.dueDate, new Date());
+            const isUrgent = daysUntilDue <= 7;
+
+            return (
+              <div
+                key={tax.id}
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-lg transition-colors",
+                  isUrgent
+                    ? "bg-warning/10 border border-warning/20"
+                    : "bg-secondary/50 hover:bg-secondary"
                 )}
-                <div className="space-y-1">
-                  <p className="font-medium">{tax.type}</p>
-                  <p className="text-sm text-muted-foreground">{tax.period}</p>
+              >
+                <div className="flex items-center gap-3">
+                  {isUrgent && (
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                  )}
+                  <div className="space-y-1">
+                    <p className="font-medium">{tax.type}</p>
+                    <p className="text-sm text-muted-foreground">{tax.period}</p>
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <p className="font-semibold">{formatCurrencyINR(tax.amount)}</p>
+                  <p className={cn(
+                    "text-xs",
+                    isUrgent ? "text-warning font-medium" : "text-muted-foreground"
+                  )}>
+                    Due {format(tax.dueDate, 'MMM d, yyyy')}
+                  </p>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                <p className="font-semibold">{formatCurrencyINR(tax.amount)}</p>
-                <p className={cn(
-                  "text-xs",
-                  isUrgent ? "text-warning font-medium" : "text-muted-foreground"
-                )}>
-                  Due {format(tax.dueDate, 'MMM d, yyyy')}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

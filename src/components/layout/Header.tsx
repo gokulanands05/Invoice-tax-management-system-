@@ -17,7 +17,7 @@ import { useAuditData } from '@/contexts/AuditDataContext';
 
 export function Header() {
   const { signOut, user } = useAuth();
-  const { source } = useAuditData();
+  const { source, notifications, unreadNotificationCount, markAllNotificationsRead } = useAuditData();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,7 +39,7 @@ export function Header() {
       {/* Right side */}
       <div className="flex items-center gap-4">
         <Badge variant="secondary" className="hidden sm:flex">
-          {source === 'live' ? 'Realtime live' : 'Demo mode'}
+          {source === 'live' ? 'Realtime live' : 'Realtime unavailable'}
         </Badge>
 
         {/* Notifications */}
@@ -47,26 +47,33 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-destructive">
-                3
-              </Badge>
+              {unreadNotificationCount > 0 && (
+                <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-destructive">
+                  {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                </Badge>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80 bg-popover">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>Notifications</span>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={markAllNotificationsRead}>
+                Mark all read
+              </Button>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Engagement overdue</span>
-              <span className="text-sm text-muted-foreground">A billed engagement needs follow-up</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Compliance deadline</span>
-              <span className="text-sm text-muted-foreground">A statutory filing is due soon</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="font-medium">Collection received</span>
-              <span className="text-sm text-muted-foreground">A client payment was recorded in INR</span>
-            </DropdownMenuItem>
+            {notifications.length === 0 ? (
+              <DropdownMenuItem disabled className="text-muted-foreground">
+                No live notifications yet
+              </DropdownMenuItem>
+            ) : (
+              notifications.slice(0, 8).map((notification) => (
+                <DropdownMenuItem key={notification.id} className="flex flex-col items-start gap-1 cursor-pointer">
+                  <span className="font-medium">{notification.title}</span>
+                  <span className="text-sm text-muted-foreground">{notification.description}</span>
+                </DropdownMenuItem>
+              ))
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

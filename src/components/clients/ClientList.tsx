@@ -14,11 +14,13 @@ import { Search, MoreHorizontal, Eye, Edit, Trash2, Plus, Mail, Phone, FileText 
 import { CreateClientDialog } from './CreateClientDialog';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
+import { useToast } from '@/hooks/use-toast';
 
 export function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const { clients, addClient } = useAuditData();
+  const { clients, addClient, deleteClient } = useAuditData();
+  const { toast } = useToast();
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -28,6 +30,26 @@ export function ClientList() {
 
   const handleAddClient = (newClient: Client) => {
     void addClient(newClient);
+  };
+
+  const handleDeleteClient = async (clientId: string, company: string) => {
+    try {
+      await deleteClient(clientId);
+      toast({
+        title: 'Client removed',
+        description: `${company} was deleted successfully.`,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to delete client.';
+      toast({ title: 'Delete failed', description: message, variant: 'destructive' });
+    }
+  };
+
+  const showComingSoon = () => {
+    toast({
+      title: 'Coming soon',
+      description: 'This action is not implemented yet.',
+    });
   };
 
   return (
@@ -80,13 +102,18 @@ export function ClientList() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover">
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
                     <Eye className="mr-2 h-4 w-4" /> View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
                     <Edit className="mr-2 h-4 w-4" /> Edit
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer text-destructive">
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive"
+                    onClick={() => {
+                      void handleDeleteClient(client.id, client.company);
+                    }}
+                  >
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>

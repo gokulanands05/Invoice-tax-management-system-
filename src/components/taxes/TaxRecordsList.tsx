@@ -26,6 +26,13 @@ export function TaxRecordsList() {
   const { toast } = useToast();
   const taxes = complianceRecords;
 
+  const handleAddComplianceRecord = () => {
+    toast({
+      title: 'Coming soon',
+      description: 'Add Compliance Record form will be added in the next update.',
+    });
+  };
+
   const statusStyles = {
     pending: 'status-pending',
     filed: 'bg-primary/10 text-primary border border-primary/20',
@@ -59,7 +66,7 @@ export function TaxRecordsList() {
           <h1 className="text-3xl font-bold font-display">Compliance Records</h1>
           <p className="text-muted-foreground">Track statutory deadlines, filings, and audit follow-ups</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleAddComplianceRecord}>
           <Plus className="h-4 w-4" />
           Add Compliance Record
         </Button>

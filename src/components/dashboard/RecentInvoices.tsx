@@ -31,23 +31,29 @@ export function RecentInvoices() {
       </div>
       
       <div className="space-y-4">
-        {recentInvoices.map((invoice) => (
-          <div 
-            key={invoice.id}
-            className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-          >
-            <div className="space-y-1">
-              <p className="font-medium">{invoice.invoiceNumber}</p>
-              <p className="text-sm text-muted-foreground">{invoice.clientName}</p>
-            </div>
-            <div className="text-right space-y-1">
-              <p className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</p>
-              <Badge className={cn("text-xs", statusStyles[invoice.status])}>
-                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-              </Badge>
-            </div>
+        {recentInvoices.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            No live bills yet. Create your first bill to see recent activity.
           </div>
-        ))}
+        ) : (
+          recentInvoices.map((invoice) => (
+            <div
+              key={invoice.id}
+              className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+            >
+              <div className="space-y-1">
+                <p className="font-medium">{invoice.invoiceNumber}</p>
+                <p className="text-sm text-muted-foreground">{invoice.clientName}</p>
+              </div>
+              <div className="text-right space-y-1">
+                <p className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</p>
+                <Badge className={cn("text-xs", statusStyles[invoice.status])}>
+                  {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -1,17 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Client, DashboardMetrics, Invoice, Report, TaxRecord, TaxStatus } from '@/types/invoice';
-import {
-  mockClients,
-  mockInvoices,
-  mockTaxRecords,
-  revenueChartData as fallbackRevenueChartData,
-  taxDistributionData as fallbackTaxDistributionData,
-} from '@/data/mockData';
+import { AppNotification, Client, DashboardMetrics, Invoice, Report, TaxRecord, TaxStatus } from '@/types/invoice';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { SUPABASE_TABLES, isSupabaseConfigured } from '@/lib/appConfig';
 
-type DataSource = 'live' | 'demo';
+type DataSource = 'live' | 'unavailable';
 
 interface AuditDataContextType {
   source: DataSource;
@@ -23,9 +16,14 @@ interface AuditDataContextType {
   revenueChartData: { month: string; revenue: number; invoices: number }[];
   complianceDistributionData: { name: string; value: number }[];
   reports: Report[];
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
   addClient: (client: Client) => Promise<void>;
   addInvoice: (invoice: Invoice) => Promise<void>;
+  deleteClient: (clientId: string) => Promise<void>;
+  deleteInvoice: (invoiceId: string) => Promise<void>;
   updateComplianceStatus: (recordId: string, status: TaxStatus) => Promise<void>;
+  markAllNotificationsRead: () => void;
 }
 
 const defaultMetrics: DashboardMetrics = {
@@ -39,7 +37,7 @@ const defaultMetrics: DashboardMetrics = {
 };
 
 const AuditDataContext = createContext<AuditDataContextType>({
-  source: 'demo',
+  source: 'unavailable',
   loading: true,
   clients: [],
   invoices: [],
@@ -48,9 +46,14 @@ const AuditDataContext = createContext<AuditDataContextType>({
   revenueChartData: [],
   complianceDistributionData: [],
   reports: [],
+  notifications: [],
+  unreadNotificationCount: 0,
   addClient: async () => {},
   addInvoice: async () => {},
+  deleteClient: async () => {},
+  deleteInvoice: async () => {},
   updateComplianceStatus: async () => {},
+  markAllNotificationsRead: () => {},
 });
 
 type ClientRow = {
@@ -167,7 +170,7 @@ function buildMetrics(clients: Client[], invoices: Invoice[], complianceRecords:
 
 function buildRevenueData(invoices: Invoice[]) {
   if (!invoices.length) {
-    return fallbackRevenueChartData;
+    return [];
   }
 
   const buckets = new Map<string, { month: string; revenue: number; invoices: number }>();
@@ -193,7 +196,7 @@ function buildRevenueData(invoices: Invoice[]) {
 
 function buildComplianceDistribution(complianceRecords: TaxRecord[]) {
   if (!complianceRecords.length) {
-    return fallbackTaxDistributionData;
+    return [];
   }
 
   const grouped = new Map<string, number>();
@@ -232,23 +235,71 @@ function buildReports(invoices: Invoice[], complianceRecords: TaxRecord[], clien
 
 export function AuditDataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [source, setSource] = useState<DataSource>('demo');
+  const [source, setSource] = useState<DataSource>('unavailable');
   const [loading, setLoading] = useState(true);
-  const [clients, setClients] = useState<Client[]>(mockClients);
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
-  const [complianceRecords, setComplianceRecords] = useState<TaxRecord[]>(mockTaxRecords);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [complianceRecords, setComplianceRecords] = useState<TaxRecord[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const metrics = buildMetrics(clients, invoices, complianceRecords);
   const revenueChartData = buildRevenueData(invoices);
   const complianceDistributionData = buildComplianceDistribution(complianceRecords);
   const reports = buildReports(invoices, complianceRecords, clients);
+  const unreadNotificationCount = notifications.filter((notification) => !notification.read).length;
+
+  function addNotification(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) {
+    setNotifications((prev) => [
+      {
+        id: crypto.randomUUID(),
+        createdAt: new Date(),
+        read: false,
+        ...notification,
+      },
+      ...prev,
+    ].slice(0, 25));
+  }
+
+  function markAllNotificationsRead() {
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
+  }
+
+  function handleRealtimeEvent(table: string, eventType: string, payload: Record<string, unknown>) {
+    if (table === SUPABASE_TABLES.clients && eventType === 'INSERT') {
+      const company = String(payload.company || 'A client');
+      addNotification({
+        title: 'New client added',
+        description: `${company} was added to your workspace.`,
+      });
+      return;
+    }
+
+    if (table === SUPABASE_TABLES.engagements && eventType === 'INSERT') {
+      const invoiceNumber = String(payload.invoice_number || 'New bill');
+      const clientName = String(payload.client_name || 'Unknown client');
+      addNotification({
+        title: 'New bill created',
+        description: `${invoiceNumber} was created for ${clientName}.`,
+      });
+      return;
+    }
+
+    if (table === SUPABASE_TABLES.compliance && eventType === 'UPDATE') {
+      const type = String(payload.type || 'Compliance record');
+      const status = String(payload.status || 'updated');
+      addNotification({
+        title: 'Compliance status updated',
+        description: `${type} is now marked as ${status}.`,
+      });
+    }
+  }
 
   async function loadWorkspaceData() {
     if (!user || !isSupabaseConfigured) {
-      setSource('demo');
-      setClients(mockClients);
-      setInvoices(mockInvoices);
-      setComplianceRecords(mockTaxRecords);
+      setSource('unavailable');
+      setClients([]);
+      setInvoices([]);
+      setComplianceRecords([]);
       setLoading(false);
       return;
     }
@@ -283,11 +334,11 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
       setComplianceRecords((complianceResult.data as ComplianceRow[]).map(mapComplianceRow));
       setSource('live');
     } catch (error) {
-      console.error('Falling back to demo data because Supabase could not load workspace data.', error);
-      setClients(mockClients);
-      setInvoices(mockInvoices);
-      setComplianceRecords(mockTaxRecords);
-      setSource('demo');
+      console.error('Supabase could not load workspace data.', error);
+      setClients([]);
+      setInvoices([]);
+      setComplianceRecords([]);
+      setSource('unavailable');
     } finally {
       setLoading(false);
     }
@@ -307,17 +358,26 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: SUPABASE_TABLES.clients, filter: `owner_id=eq.${user.id}` },
-        () => loadWorkspaceData(),
+        (payload) => {
+          handleRealtimeEvent(SUPABASE_TABLES.clients, payload.eventType, (payload.new || payload.old || {}) as Record<string, unknown>);
+          void loadWorkspaceData();
+        },
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: SUPABASE_TABLES.engagements, filter: `owner_id=eq.${user.id}` },
-        () => loadWorkspaceData(),
+        (payload) => {
+          handleRealtimeEvent(SUPABASE_TABLES.engagements, payload.eventType, (payload.new || payload.old || {}) as Record<string, unknown>);
+          void loadWorkspaceData();
+        },
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: SUPABASE_TABLES.compliance, filter: `owner_id=eq.${user.id}` },
-        () => loadWorkspaceData(),
+        (payload) => {
+          handleRealtimeEvent(SUPABASE_TABLES.compliance, payload.eventType, (payload.new || payload.old || {}) as Record<string, unknown>);
+          void loadWorkspaceData();
+        },
       )
       .subscribe();
 
@@ -414,6 +474,30 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function deleteClient(clientId: string) {
+    if (!user || !isSupabaseConfigured) {
+      setClients((prev) => prev.filter((client) => client.id !== clientId));
+      return;
+    }
+
+    const { error } = await supabase.from(SUPABASE_TABLES.clients).delete().eq('id', clientId).eq('owner_id', user.id);
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function deleteInvoice(invoiceId: string) {
+    if (!user || !isSupabaseConfigured) {
+      setInvoices((prev) => prev.filter((invoice) => invoice.id !== invoiceId));
+      return;
+    }
+
+    const { error } = await supabase.from(SUPABASE_TABLES.engagements).delete().eq('id', invoiceId).eq('owner_id', user.id);
+    if (error) {
+      throw error;
+    }
+  }
+
   return (
     <AuditDataContext.Provider
       value={{
@@ -426,9 +510,14 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
         revenueChartData,
         complianceDistributionData,
         reports,
+        notifications,
+        unreadNotificationCount,
         addClient,
         addInvoice,
+        deleteClient,
+        deleteInvoice,
         updateComplianceStatus,
+        markAllNotificationsRead,
       }}
     >
       {children}
