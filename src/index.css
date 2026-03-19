@@ -138,12 +138,12 @@
   }
 
   .metric-card {
-    @apply glass-card p-6 transition-all duration-300 hover:scale-[1.02];
-    box-shadow: var(--shadow-md);
+    @apply bg-card border border-border rounded-xl p-6 transition-colors duration-200;
+    box-shadow: var(--shadow-sm);
   }
 
   .metric-card:hover {
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-md);
   }
 
   .gradient-text {

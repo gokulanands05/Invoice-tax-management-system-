@@ -28,13 +28,23 @@ import { Download, Plus, FileText, TrendingUp, Users, Receipt } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCompactCurrencyINR, formatCurrencyINR } from '@/lib/formatters';
+import { detectInvoiceIssues } from '@/lib/fraudChecks';
 
 const COLORS = ['hsl(239, 84%, 67%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(280, 84%, 60%)', 'hsl(0, 84%, 60%)'];
 
+interface GeneratedReport {
+  id: string;
+  title: string;
+  type: 'monthly' | 'tax' | 'audit';
+  generatedAt: Date;
+  rows: Array<Record<string, string | number>>;
+}
+
 export function ReportsDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('6months');
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
   const { toast } = useToast();
-  const { reports, revenueChartData, complianceDistributionData, clients } = useAuditData();
+  const { reports, revenueChartData, complianceDistributionData, clients, invoices } = useAuditData();
 
   const clientRevenueData = clients.map(client => ({
     name: client.company.split(' ')[0],
@@ -42,15 +52,7 @@ export function ReportsDashboard() {
     pending: client.pendingAmount,
   }));
 
-  const downloadJSON = (filename: string, data: unknown) => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const { issueMap } = detectInvoiceIssues(invoices);
 
   const downloadCSV = (filename: string, rows: Array<Record<string, string | number>>) => {
     if (!rows.length) {
@@ -73,18 +75,151 @@ export function ReportsDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const handleGenerateReport = () => {
-    downloadJSON(`audit-snapshot-${Date.now()}.json`, {
-      generatedAt: new Date().toISOString(),
-      period: selectedPeriod,
-      revenue: revenueChartData,
-      compliance: complianceDistributionData,
-      clients: clientRevenueData,
+  const downloadSnapshotCSV = () => {
+    const rows: Array<Record<string, string | number>> = [
+      ...revenueChartData.map((row) => ({ section: 'Revenue', key: row.month, value: row.revenue, count: row.invoices })),
+      ...complianceDistributionData.map((row) => ({ section: 'Compliance', key: row.name, value: row.value, count: 1 })),
+      ...clientRevenueData.map((row) => ({ section: 'Clients', key: row.name, value: row.revenue, count: row.pending })),
+    ];
+
+    downloadCSV(`audit-snapshot-${Date.now()}.csv`, rows);
+  };
+
+  const pushGeneratedReport = (report: GeneratedReport) => {
+    setGeneratedReports((prev) => [report, ...prev].slice(0, 20));
+  };
+
+  const handleGenerateMonthlyReport = () => {
+    const rows = invoices.map((invoice) => ({
+      invoice_number: invoice.invoiceNumber,
+      invoice_date: format(invoice.createdAt, 'yyyy-MM-dd'),
+      client: invoice.clientName,
+      taxable_amount: invoice.amount,
+      tax_amount: invoice.taxAmount,
+      total_amount: invoice.totalAmount,
+      review_status: invoice.reviewStatus,
+      verification_status: invoice.verificationStatus,
+    }));
+
+    if (!rows.length) {
+      toast({ title: 'No data', description: 'No invoices available for monthly report.', variant: 'destructive' });
+      return;
+    }
+
+    const fileName = `monthly-report-${Date.now()}.csv`;
+    downloadCSV(fileName, rows);
+    pushGeneratedReport({
+      id: `monthly-${Date.now()}`,
+      title: 'Monthly Report',
+      type: 'monthly',
+      generatedAt: new Date(),
+      rows,
     });
+
+    toast({ title: 'Monthly report generated', description: 'Monthly CSV exported successfully.' });
+  };
+
+  const handleGenerateTaxReport = () => {
+    const rows = invoices.map((invoice) => ({
+      invoice_number: invoice.invoiceNumber,
+      gstin: invoice.gstin,
+      taxable_amount: invoice.amount,
+      cgst: invoice.cgst,
+      sgst: invoice.sgst,
+      igst: invoice.igst,
+      tax_amount: invoice.taxAmount,
+      total_amount: invoice.totalAmount,
+    }));
+
+    if (!rows.length) {
+      toast({ title: 'No data', description: 'No invoices available for tax report.', variant: 'destructive' });
+      return;
+    }
+
+    const fileName = `tax-report-${Date.now()}.csv`;
+    downloadCSV(fileName, rows);
+    pushGeneratedReport({
+      id: `tax-${Date.now()}`,
+      title: 'Tax Report',
+      type: 'tax',
+      generatedAt: new Date(),
+      rows,
+    });
+
+    toast({ title: 'Tax report generated', description: 'Tax CSV exported successfully.' });
+  };
+
+  const handleGenerateAuditReport = () => {
+    const rows = invoices.map((invoice) => ({
+      invoice_number: invoice.invoiceNumber,
+      review_status: invoice.reviewStatus,
+      verification_status: invoice.verificationStatus,
+      remarks: invoice.remarks || '-',
+      issue_count: (issueMap.get(invoice.id) || []).length,
+      issues: (issueMap.get(invoice.id) || []).map((issue) => issue.label).join(' | ') || 'None',
+      last_audit_action: invoice.auditHistory[0]?.action || 'No action',
+      last_checked_by: invoice.auditHistory[0]?.checkedBy || '-',
+    }));
+
+    if (!rows.length) {
+      toast({ title: 'No data', description: 'No invoices available for audit report.', variant: 'destructive' });
+      return;
+    }
+
+    const fileName = `audit-report-${Date.now()}.csv`;
+    downloadCSV(fileName, rows);
+    pushGeneratedReport({
+      id: `audit-${Date.now()}`,
+      title: 'Audit Report',
+      type: 'audit',
+      generatedAt: new Date(),
+      rows,
+    });
+
+    toast({ title: 'Audit report generated', description: 'Audit CSV exported successfully.' });
+  };
+
+  const downloadRecentReport = (report: { id: string; type: string; data: unknown }) => {
+    if (report.type === 'revenue' && Array.isArray(report.data)) {
+      const rows = (report.data as Array<{ month: string; revenue: number; invoices: number }>).map((row) => ({
+        month: row.month,
+        revenue: row.revenue,
+        invoices: row.invoices,
+      }));
+      downloadCSV(`${report.id}.csv`, rows);
+      return;
+    }
+
+    if (report.type === 'tax' && Array.isArray(report.data)) {
+      const rows = (report.data as Array<{ name: string; value: number }>).map((row) => ({
+        type: row.name,
+        amount: row.value,
+      }));
+      downloadCSV(`${report.id}.csv`, rows);
+      return;
+    }
+
+    if (report.type === 'client' && Array.isArray(report.data)) {
+      const rows = (report.data as Array<{ name: string; company: string; email: string; totalBilled: number; pendingAmount: number }>).map((row) => ({
+        name: row.name,
+        company: row.company,
+        email: row.email,
+        total_billed: row.totalBilled,
+        pending_amount: row.pendingAmount,
+      }));
+      downloadCSV(`${report.id}.csv`, rows);
+      return;
+    }
+
+    downloadCSV(`${report.id}.csv`, [{ message: 'No structured data available' }]);
+  };
+
+  const handleGenerateReport = () => {
+    downloadSnapshotCSV();
 
     toast({
       title: "Report Generated",
-      description: "Snapshot exported successfully.",
+      description: "Snapshot CSV exported successfully.",
     });
   };
 
@@ -112,6 +247,24 @@ export function ReportsDashboard() {
             <Plus className="h-4 w-4" />
             Generate Snapshot
           </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="glass-card p-4">
+          <p className="font-medium">Monthly Report</p>
+          <p className="text-sm text-muted-foreground">Invoice-wise monthly billing and audit status.</p>
+          <Button className="mt-3 w-full" onClick={handleGenerateMonthlyReport}>Generate Monthly Report</Button>
+        </div>
+        <div className="glass-card p-4">
+          <p className="font-medium">Tax Report</p>
+          <p className="text-sm text-muted-foreground">GSTIN and tax breakup (CGST/SGST/IGST).</p>
+          <Button className="mt-3 w-full" onClick={handleGenerateTaxReport}>Generate Tax Report</Button>
+        </div>
+        <div className="glass-card p-4">
+          <p className="font-medium">Audit Report</p>
+          <p className="text-sm text-muted-foreground">Review decisions, verification, and issue flags.</p>
+          <Button className="mt-3 w-full" onClick={handleGenerateAuditReport}>Generate Audit Report</Button>
         </div>
       </div>
 
@@ -258,6 +411,29 @@ export function ReportsDashboard() {
           </div>
           
           <div className="space-y-3">
+            {generatedReports.map((report) => (
+              <div
+                key={report.id}
+                className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{report.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Generated on {format(report.generatedAt, 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{report.type}</Badge>
+                  <Button variant="ghost" size="icon" onClick={() => downloadCSV(`${report.id}.csv`, report.rows)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+
             {reports.map((report) => (
               <div 
                 key={report.id}
@@ -274,7 +450,7 @@ export function ReportsDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{report.type}</Badge>
-                  <Button variant="ghost" size="icon" onClick={() => downloadJSON(`${report.id}.json`, report)}>
+                  <Button variant="ghost" size="icon" onClick={() => downloadRecentReport(report)}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>

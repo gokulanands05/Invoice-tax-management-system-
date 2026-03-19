@@ -26,6 +26,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
     phone: '',
     company: '',
     address: '',
+    gstin: '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -38,6 +39,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
     const company = formData.company.trim();
     const phone = formData.phone.trim();
     const address = formData.address.trim();
+    const gstin = formData.gstin.trim().toUpperCase();
 
     if (!name || !email || !company) {
       toast({
@@ -66,6 +68,15 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
       return;
     }
 
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
+      toast({
+        title: "Invalid input",
+        description: "GSTIN format is invalid.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const newClient: Client = {
       id: Date.now().toString(),
       name,
@@ -73,6 +84,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
       company,
       phone,
       address,
+      gstin,
       totalBilled: 0,
       pendingAmount: 0,
       invoiceCount: 0,
@@ -89,6 +101,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
       phone: '',
       company: '',
       address: '',
+      gstin: '',
     });
     
     toast({
@@ -149,6 +162,15 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
               value={formData.address}
               onChange={(e) => handleChange('address', e.target.value)}
               rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>GSTIN</Label>
+            <Input
+              placeholder="33ABCDE1234F1Z5"
+              value={formData.gstin}
+              onChange={(e) => handleChange('gstin', e.target.value.toUpperCase())}
             />
           </div>
 

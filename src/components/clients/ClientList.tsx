@@ -26,7 +26,7 @@ export function ClientList() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [editData, setEditData] = useState({ name: '', company: '', email: '', phone: '', address: '' });
+  const [editData, setEditData] = useState({ name: '', company: '', email: '', phone: '', address: '', gstin: '' });
   const { clients, addClient, updateClient, deleteClient } = useAuditData();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -67,6 +67,7 @@ export function ClientList() {
       email: client.email,
       phone: client.phone,
       address: client.address,
+      gstin: client.gstin,
     });
     setIsEditOpen(true);
   };
@@ -79,6 +80,7 @@ export function ClientList() {
     const email = editData.email.trim().toLowerCase();
     const phone = editData.phone.trim();
     const address = editData.address.trim();
+    const gstin = editData.gstin.trim().toUpperCase();
 
     if (!name || !company || !email) {
       toast({ title: 'Invalid input', description: 'Name, company and email are required.', variant: 'destructive' });
@@ -95,6 +97,11 @@ export function ClientList() {
       return;
     }
 
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
+      toast({ title: 'Invalid input', description: 'GSTIN format looks invalid.', variant: 'destructive' });
+      return;
+    }
+
     try {
       await updateClient({
         ...selectedClient,
@@ -103,6 +110,7 @@ export function ClientList() {
         email,
         phone,
         address,
+        gstin,
       });
 
       setIsEditOpen(false);
@@ -239,6 +247,7 @@ export function ClientList() {
               <p><span className="font-medium">Company:</span> {selectedClient.company}</p>
               <p><span className="font-medium">Email:</span> {selectedClient.email}</p>
               <p><span className="font-medium">Phone:</span> {selectedClient.phone || 'N/A'}</p>
+              <p><span className="font-medium">GSTIN:</span> {selectedClient.gstin || 'N/A'}</p>
               <p><span className="font-medium">Address:</span> {selectedClient.address || 'N/A'}</p>
               <p><span className="font-medium">Outstanding:</span> {formatCurrencyINR(selectedClient.pendingAmount)}</p>
             </div>
@@ -271,6 +280,10 @@ export function ClientList() {
             <div className="space-y-2">
               <Label>Address</Label>
               <Textarea rows={2} value={editData.address} onChange={(e) => setEditData((prev) => ({ ...prev, address: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>GSTIN</Label>
+              <Input value={editData.gstin} onChange={(e) => setEditData((prev) => ({ ...prev, gstin: e.target.value.toUpperCase() }))} />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>

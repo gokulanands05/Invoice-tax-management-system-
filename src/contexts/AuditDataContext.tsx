@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppNotification, Client, DashboardMetrics, Invoice, Report, TaxRecord, TaxStatus } from '@/types/invoice';
+import { AppNotification, AuditHistoryEntry, Client, DashboardMetrics, Invoice, Report, TaxRecord, TaxStatus } from '@/types/invoice';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { SUPABASE_TABLES, isSupabaseConfigured } from '@/lib/appConfig';
@@ -69,6 +69,7 @@ type ClientRow = {
   phone: string | null;
   company: string;
   address: string | null;
+  gstin: string | null;
   total_billed: number | null;
   pending_amount: number | null;
   invoice_count: number | null;
@@ -80,13 +81,27 @@ type EngagementRow = {
   invoice_number: string;
   client_id: string;
   client_name: string;
+  gstin: string | null;
   amount: number;
   tax_amount: number;
+  cgst: number | null;
+  sgst: number | null;
+  igst: number | null;
   total_amount: number;
   status: Invoice['status'];
   due_date: string;
   created_at: string;
   items: Invoice['items'] | null;
+  review_status: Invoice['reviewStatus'] | null;
+  verification_status: Invoice['verificationStatus'] | null;
+  remarks: string | null;
+  audit_history: Array<{
+    id: string;
+    action: string;
+    checkedBy: string;
+    checkedAt: string;
+    remarks?: string;
+  }> | null;
 };
 
 type ComplianceRow = {
@@ -108,6 +123,7 @@ function mapClientRow(row: ClientRow): Client {
     phone: row.phone || '',
     company: row.company,
     address: row.address || '',
+    gstin: row.gstin || '',
     totalBilled: row.total_billed || 0,
     pendingAmount: row.pending_amount || 0,
     invoiceCount: row.invoice_count || 0,
@@ -116,18 +132,34 @@ function mapClientRow(row: ClientRow): Client {
 }
 
 function mapEngagementRow(row: EngagementRow): Invoice {
+  const auditHistory: AuditHistoryEntry[] = (row.audit_history || []).map((entry) => ({
+    id: entry.id,
+    action: entry.action,
+    checkedBy: entry.checkedBy,
+    checkedAt: new Date(entry.checkedAt),
+    remarks: entry.remarks,
+  }));
+
   return {
     id: row.id,
     invoiceNumber: row.invoice_number,
     clientId: row.client_id,
     clientName: row.client_name,
+    gstin: row.gstin || '',
     amount: row.amount,
     taxAmount: row.tax_amount,
+    cgst: row.cgst || 0,
+    sgst: row.sgst || 0,
+    igst: row.igst || 0,
     totalAmount: row.total_amount,
     status: row.status,
     dueDate: new Date(row.due_date),
     createdAt: new Date(row.created_at),
     items: row.items || [],
+    reviewStatus: row.review_status || 'pending',
+    verificationStatus: row.verification_status || 'not_verified',
+    remarks: row.remarks || '',
+    auditHistory,
   };
 }
 
@@ -406,6 +438,7 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
       phone: client.phone,
       company: client.company,
       address: client.address,
+      gstin: client.gstin,
       total_billed: client.totalBilled,
       pending_amount: client.pendingAmount,
       invoice_count: client.invoiceCount,
@@ -429,13 +462,24 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
       invoice_number: invoice.invoiceNumber,
       client_id: invoice.clientId,
       client_name: invoice.clientName,
+      gstin: invoice.gstin,
       amount: invoice.amount,
       tax_amount: invoice.taxAmount,
+      cgst: invoice.cgst,
+      sgst: invoice.sgst,
+      igst: invoice.igst,
       total_amount: invoice.totalAmount,
       status: invoice.status,
       due_date: invoice.dueDate.toISOString(),
       created_at: invoice.createdAt.toISOString(),
       items: invoice.items,
+      review_status: invoice.reviewStatus,
+      verification_status: invoice.verificationStatus,
+      remarks: invoice.remarks,
+      audit_history: invoice.auditHistory.map((entry) => ({
+        ...entry,
+        checkedAt: entry.checkedAt.toISOString(),
+      })),
     });
 
     if (error) {
@@ -457,6 +501,7 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
         phone: client.phone,
         company: client.company,
         address: client.address,
+        gstin: client.gstin,
       })
       .eq('id', client.id)
       .eq('owner_id', user.id);
@@ -477,12 +522,23 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
       .update({
         client_id: invoice.clientId,
         client_name: invoice.clientName,
+        gstin: invoice.gstin,
         amount: invoice.amount,
         tax_amount: invoice.taxAmount,
+        cgst: invoice.cgst,
+        sgst: invoice.sgst,
+        igst: invoice.igst,
         total_amount: invoice.totalAmount,
         status: invoice.status,
         due_date: invoice.dueDate.toISOString(),
         items: invoice.items,
+        review_status: invoice.reviewStatus,
+        verification_status: invoice.verificationStatus,
+        remarks: invoice.remarks,
+        audit_history: invoice.auditHistory.map((entry) => ({
+          ...entry,
+          checkedAt: entry.checkedAt.toISOString(),
+        })),
       })
       .eq('id', invoice.id)
       .eq('owner_id', user.id);

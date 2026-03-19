@@ -1,4 +1,5 @@
 import { Bell, Search, User } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,8 +18,74 @@ import { useAuditData } from '@/contexts/AuditDataContext';
 
 export function Header() {
   const { signOut, user } = useAuth();
-  const { source, notifications, unreadNotificationCount, markAllNotificationsRead } = useAuditData();
+  const { source, notifications, unreadNotificationCount, markAllNotificationsRead, clients, invoices, complianceRecords, reports } = useAuditData();
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [] as { id: string; label: string; path: string; type: string }[];
+
+    const clientMatches = clients
+      .filter((client) =>
+        client.name.toLowerCase().includes(q) ||
+        client.company.toLowerCase().includes(q) ||
+        client.email.toLowerCase().includes(q),
+      )
+      .map((client) => ({
+        id: `client-${client.id}`,
+        label: `${client.company} (${client.name})`,
+        path: '/clients',
+        type: 'Client',
+      }));
+
+    const invoiceMatches = invoices
+      .filter((invoice) =>
+        invoice.invoiceNumber.toLowerCase().includes(q) ||
+        invoice.clientName.toLowerCase().includes(q),
+      )
+      .map((invoice) => ({
+        id: `invoice-${invoice.id}`,
+        label: `${invoice.invoiceNumber} - ${invoice.clientName}`,
+        path: '/invoices',
+        type: 'Bill',
+      }));
+
+    const complianceMatches = complianceRecords
+      .filter((record) =>
+        record.type.toLowerCase().includes(q) ||
+        record.period.toLowerCase().includes(q),
+      )
+      .map((record) => ({
+        id: `compliance-${record.id}`,
+        label: `${record.type} (${record.period})`,
+        path: '/taxes',
+        type: 'Compliance',
+      }));
+
+    const reportMatches = reports
+      .filter((report) => report.title.toLowerCase().includes(q))
+      .map((report) => ({
+        id: `report-${report.id}`,
+        label: report.title,
+        path: '/reports',
+        type: 'Report',
+      }));
+
+    return [...clientMatches, ...invoiceMatches, ...complianceMatches, ...reportMatches].slice(0, 8);
+  }, [searchQuery, clients, invoices, complianceRecords, reports]);
+
+  const handleSearchSelect = (path: string) => {
+    navigate(path);
+    setSearchQuery('');
+  };
+
+  const handleSearchSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    if (searchResults.length > 0) {
+      handleSearchSelect(searchResults[0].path);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -33,7 +100,29 @@ export function Header() {
         <Input
           placeholder="Search engagements, clients, reports..."
           className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleSearchSubmit}
         />
+        {searchQuery.trim() && (
+          <div className="absolute z-40 mt-2 w-full rounded-lg border border-border bg-popover shadow-lg">
+            {searchResults.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">No results found</p>
+            ) : (
+              searchResults.map((result) => (
+                <button
+                  type="button"
+                  key={result.id}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-secondary"
+                  onClick={() => handleSearchSelect(result.path)}
+                >
+                  <span>{result.label}</span>
+                  <span className="text-xs text-muted-foreground">{result.type}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right side */}

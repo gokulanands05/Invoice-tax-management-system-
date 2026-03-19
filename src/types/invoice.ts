@@ -1,5 +1,15 @@
 export type InvoiceStatus = 'paid' | 'pending' | 'overdue';
 export type TaxStatus = 'pending' | 'filed' | 'paid';
+export type InvoiceReviewStatus = 'accepted' | 'rejected' | 'pending';
+export type AuditVerificationStatus = 'verified' | 'not_verified';
+
+export interface AuditHistoryEntry {
+  id: string;
+  action: string;
+  checkedBy: string;
+  checkedAt: Date;
+  remarks?: string;
+}
 
 export interface Client {
   id: string;
@@ -8,6 +18,7 @@ export interface Client {
   phone: string;
   company: string;
   address: string;
+  gstin: string;
   totalBilled: number;
   pendingAmount: number;
   invoiceCount: number;
@@ -19,13 +30,21 @@ export interface Invoice {
   invoiceNumber: string;
   clientId: string;
   clientName: string;
+  gstin: string;
   amount: number;
   taxAmount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
   totalAmount: number;
   status: InvoiceStatus;
   dueDate: Date;
   createdAt: Date;
   items: InvoiceItem[];
+  reviewStatus: InvoiceReviewStatus;
+  verificationStatus: AuditVerificationStatus;
+  remarks: string;
+  auditHistory: AuditHistoryEntry[];
 }
 
 export interface InvoiceItem {

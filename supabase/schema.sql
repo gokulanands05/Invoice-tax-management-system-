@@ -8,6 +8,7 @@ create table if not exists public.clients (
   phone text,
   company text not null,
   address text,
+  gstin text,
   total_billed numeric not null default 0,
   pending_amount numeric not null default 0,
   invoice_count integer not null default 0,
@@ -20,14 +21,32 @@ create table if not exists public.audit_engagements (
   invoice_number text not null,
   client_id text not null,
   client_name text not null,
+  gstin text not null default '',
   amount numeric not null default 0,
   tax_amount numeric not null default 0,
+  cgst numeric not null default 0,
+  sgst numeric not null default 0,
+  igst numeric not null default 0,
   total_amount numeric not null default 0,
   status text not null check (status in ('paid', 'pending', 'overdue')),
+  review_status text not null default 'pending' check (review_status in ('accepted', 'rejected', 'pending')),
+  verification_status text not null default 'not_verified' check (verification_status in ('verified', 'not_verified')),
+  remarks text not null default '',
+  audit_history jsonb not null default '[]'::jsonb,
   due_date timestamptz not null,
   created_at timestamptz not null default now(),
   items jsonb not null default '[]'::jsonb
 );
+
+alter table public.audit_engagements add column if not exists review_status text not null default 'pending';
+alter table public.audit_engagements add column if not exists verification_status text not null default 'not_verified';
+alter table public.audit_engagements add column if not exists remarks text not null default '';
+alter table public.audit_engagements add column if not exists audit_history jsonb not null default '[]'::jsonb;
+alter table public.clients add column if not exists gstin text;
+alter table public.audit_engagements add column if not exists gstin text not null default '';
+alter table public.audit_engagements add column if not exists cgst numeric not null default 0;
+alter table public.audit_engagements add column if not exists sgst numeric not null default 0;
+alter table public.audit_engagements add column if not exists igst numeric not null default 0;
 
 create table if not exists public.compliance_records (
   id text primary key,

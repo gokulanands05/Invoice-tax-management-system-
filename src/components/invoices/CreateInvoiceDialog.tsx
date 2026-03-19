@@ -33,6 +33,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
   const { clients } = useAuditData();
   const [selectedClient, setSelectedClient] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [gstin, setGstin] = useState('');
+  const [supplyType, setSupplyType] = useState<'intra' | 'inter'>('intra');
+  const [gstRate, setGstRate] = useState('18');
   const [items, setItems] = useState<Partial<InvoiceItem>[]>([
     { description: '', quantity: 1, rate: 0 }
   ]);
@@ -46,6 +49,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
           initialData.clientName!.toLowerCase().includes(c.company.toLowerCase())
         );
         if (client) setSelectedClient(client.id);
+        if (client?.gstin) setGstin(client.gstin);
       }
 
       if (initialData.dueDate) {
@@ -80,8 +84,12 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
     const subtotal = items.reduce((sum, item) => {
       return sum + (item.quantity || 0) * (item.rate || 0);
     }, 0);
-    const tax = subtotal * 0.15; // 15% tax
-    return { subtotal, tax, total: subtotal + tax };
+    const rate = Number(gstRate || 0);
+    const tax = subtotal * (rate / 100);
+    const cgst = supplyType === 'intra' ? tax / 2 : 0;
+    const sgst = supplyType === 'intra' ? tax / 2 : 0;
+    const igst = supplyType === 'inter' ? tax : 0;
+    return { subtotal, tax, cgst, sgst, igst, total: subtotal + tax };
   };
 
   const handleSubmit = () => {
@@ -92,6 +100,23 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
         description: "Please select a client and due date.",
         variant: "destructive"
       });
+      return;
+    }
+
+    const cleanGstin = gstin.trim().toUpperCase();
+    if (!cleanGstin) {
+      toast({ title: 'Invalid input', description: 'GSTIN is required for invoice.', variant: 'destructive' });
+      return;
+    }
+
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(cleanGstin)) {
+      toast({ title: 'Invalid input', description: 'GSTIN format is invalid.', variant: 'destructive' });
+      return;
+    }
+
+    const numericGstRate = Number(gstRate);
+    if (Number.isNaN(numericGstRate) || numericGstRate < 0 || numericGstRate > 28) {
+      toast({ title: 'Invalid input', description: 'GST rate must be between 0 and 28.', variant: 'destructive' });
       return;
     }
 
@@ -121,15 +146,19 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
       return;
     }
 
-    const { subtotal, tax, total } = calculateTotal();
+    const { subtotal, tax, cgst, sgst, igst, total } = calculateTotal();
 
     const newInvoice: Invoice = {
       id: Date.now().toString(),
       invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
       clientId: client.id,
       clientName: client.company,
+      gstin: cleanGstin,
       amount: subtotal,
       taxAmount: tax,
+      cgst,
+      sgst,
+      igst,
       totalAmount: total,
       status: 'pending',
       dueDate: parsedDueDate,
@@ -141,6 +170,10 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
         rate: item.rate || 0,
         amount: (item.quantity || 0) * (item.rate || 0),
       })),
+      reviewStatus: 'pending',
+      verificationStatus: 'not_verified',
+      remarks: '',
+      auditHistory: [],
     };
 
     onSubmit(newInvoice);
@@ -149,6 +182,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
     // Reset form
     setSelectedClient('');
     setDueDate('');
+    setGstin('');
+    setSupplyType('intra');
+    setGstRate('18');
     setItems([{ description: '', quantity: 1, rate: 0 }]);
 
     toast({
@@ -157,7 +193,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
     });
   };
 
-  const { subtotal, tax, total } = calculateTotal();
+  const { subtotal, tax, cgst, sgst, igst, total } = calculateTotal();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,7 +207,14 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Client</Label>
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <Select
+                value={selectedClient}
+                onValueChange={(value) => {
+                  setSelectedClient(value);
+                  const selected = clients.find((client) => client.id === value);
+                  if (selected?.gstin) setGstin(selected.gstin);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
@@ -191,6 +234,29 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>GSTIN</Label>
+              <Input value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} placeholder="33ABCDE1234F1Z5" />
+            </div>
+            <div className="space-y-2">
+              <Label>Supply Type</Label>
+              <Select value={supplyType} onValueChange={(value: 'intra' | 'inter') => setSupplyType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="intra">Intra-state (CGST + SGST)</SelectItem>
+                  <SelectItem value="inter">Inter-state (IGST)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>GST Rate %</Label>
+              <Input type="number" min="0" max="28" step="0.01" value={gstRate} onChange={(e) => setGstRate(e.target.value)} />
             </div>
           </div>
 
@@ -252,8 +318,20 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
               <span>{formatCurrencyINR(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">GST / Tax (15%)</span>
+              <span className="text-muted-foreground">GST / Tax ({gstRate || 0}%)</span>
               <span>{formatCurrencyINR(tax)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">CGST</span>
+              <span>{formatCurrencyINR(cgst)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">SGST</span>
+              <span>{formatCurrencyINR(sgst)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">IGST</span>
+              <span>{formatCurrencyINR(igst)}</span>
             </div>
             <div className="flex justify-between text-lg font-semibold">
               <span>Total</span>
