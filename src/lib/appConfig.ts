@@ -1,6 +1,7 @@
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const siteUrl = import.meta.env.VITE_SITE_URL;
+const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL;
 
 export const isSupabaseConfigured =
   Boolean(supabaseUrl) &&
@@ -14,6 +15,11 @@ export const getAppUrl = () => {
     return window.location.origin;
   }
   return 'http://localhost:3000';
+};
+
+export const getAuthRedirectUrl = () => {
+  if (authRedirectUrl) return authRedirectUrl;
+  return `${getAppUrl()}/auth`;
 };
 
 export const SUPABASE_TABLES = {

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAppUrl, isSupabaseConfigured } from '@/lib/appConfig';
+import { getAuthRedirectUrl, isSupabaseConfigured } from '@/lib/appConfig';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -65,7 +65,7 @@ export default function AuthPage() {
           email: normalizedEmail,
           password: normalizedPassword,
           options: {
-            emailRedirectTo: `${getAppUrl()}/auth`,
+            emailRedirectTo: getAuthRedirectUrl(),
           },
         });
         if (error) throw error;
