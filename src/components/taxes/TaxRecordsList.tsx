@@ -21,18 +21,62 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from 'react';
 
 export function TaxRecordsList() {
-  const { complianceRecords, updateComplianceStatus } = useAuditData();
+  const { complianceRecords, updateComplianceStatus, addComplianceRecord } = useAuditData();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [type, setType] = useState('GST');
+  const [period, setPeriod] = useState('');
+  const [amount, setAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const taxes = complianceRecords;
 
-  const handleAddComplianceRecord = () => {
-    toast({
-      title: 'Coming soon',
-      description: 'Add Compliance Record form will be added in the next update.',
-    });
+  const handleAddComplianceRecord = async () => {
+    const cleanPeriod = period.trim();
+    const numericAmount = Number(amount);
+    if (!cleanPeriod || !dueDate || Number.isNaN(numericAmount)) {
+      toast({ title: 'Invalid input', description: 'Period, amount, and due date are required.', variant: 'destructive' });
+      return;
+    }
+
+    if (numericAmount <= 0) {
+      toast({ title: 'Invalid input', description: 'Amount must be greater than zero.', variant: 'destructive' });
+      return;
+    }
+
+    const parsedDueDate = new Date(dueDate);
+    if (Number.isNaN(parsedDueDate.getTime())) {
+      toast({ title: 'Invalid input', description: 'Due date is invalid.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await addComplianceRecord({
+        id: Date.now().toString(),
+        type,
+        period: cleanPeriod,
+        amount: numericAmount,
+        status: 'pending',
+        dueDate: parsedDueDate,
+      });
+
+      setIsAddOpen(false);
+      setType('GST');
+      setPeriod('');
+      setAmount('');
+      setDueDate('');
+      toast({ title: 'Compliance record added', description: 'Record has been saved successfully.' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to save compliance record.';
+      toast({ title: 'Save failed', description: message, variant: 'destructive' });
+    }
   };
 
   const statusStyles = {
@@ -68,7 +112,7 @@ export function TaxRecordsList() {
           <h1 className="text-3xl font-bold font-display">Compliance Records</h1>
           <p className="text-muted-foreground">Track statutory deadlines, filings, and audit follow-ups</p>
         </div>
-        <Button className="gap-2" onClick={handleAddComplianceRecord}>
+        <Button className="gap-2" onClick={() => setIsAddOpen(true)}>
           <Plus className="h-4 w-4" />
           Add Compliance Record
         </Button>
@@ -198,6 +242,46 @@ export function TaxRecordsList() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle>Add Compliance Record</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="GST">GST</SelectItem>
+                  <SelectItem value="Income Tax">Income Tax</SelectItem>
+                  <SelectItem value="TDS">TDS</SelectItem>
+                  <SelectItem value="Professional Tax">Professional Tax</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Period</Label>
+              <Input value={period} placeholder="Q1 2026" onChange={(e) => setPeriod(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input type="number" min="0" step="0.01" value={amount} placeholder="0.00" onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={() => { void handleAddComplianceRecord(); }}>Save Record</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

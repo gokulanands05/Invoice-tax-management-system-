@@ -88,8 +88,34 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
     const client = clients.find(c => c.id === selectedClient);
     if (!client || !dueDate) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields",
+        title: "Invalid input",
+        description: "Please select a client and due date.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const parsedDueDate = new Date(dueDate);
+    if (Number.isNaN(parsedDueDate.getTime())) {
+      toast({
+        title: "Invalid input",
+        description: "Due date is invalid.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const hasInvalidItem = items.some((item) => {
+      const description = String(item.description || '').trim();
+      const quantity = Number(item.quantity || 0);
+      const rate = Number(item.rate || 0);
+      return !description || quantity <= 0 || rate < 0;
+    });
+
+    if (hasInvalidItem) {
+      toast({
+        title: "Invalid input",
+        description: "Each bill item needs description, quantity > 0 and rate >= 0.",
         variant: "destructive"
       });
       return;
@@ -106,7 +132,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, onSubmit, initialData 
       taxAmount: tax,
       totalAmount: total,
       status: 'pending',
-      dueDate: new Date(dueDate),
+      dueDate: parsedDueDate,
       createdAt: new Date(),
       items: items.map((item, index) => ({
         id: String(index + 1),

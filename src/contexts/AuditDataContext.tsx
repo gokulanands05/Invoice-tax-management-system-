@@ -19,7 +19,10 @@ interface AuditDataContextType {
   notifications: AppNotification[];
   unreadNotificationCount: number;
   addClient: (client: Client) => Promise<void>;
+  updateClient: (client: Client) => Promise<void>;
   addInvoice: (invoice: Invoice) => Promise<void>;
+  updateInvoice: (invoice: Invoice) => Promise<void>;
+  addComplianceRecord: (record: TaxRecord) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
   deleteInvoice: (invoiceId: string) => Promise<void>;
   updateComplianceStatus: (recordId: string, status: TaxStatus) => Promise<void>;
@@ -49,7 +52,10 @@ const AuditDataContext = createContext<AuditDataContextType>({
   notifications: [],
   unreadNotificationCount: 0,
   addClient: async () => {},
+  updateClient: async () => {},
   addInvoice: async () => {},
+  updateInvoice: async () => {},
+  addComplianceRecord: async () => {},
   deleteClient: async () => {},
   deleteInvoice: async () => {},
   updateComplianceStatus: async () => {},
@@ -437,6 +443,78 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function updateClient(client: Client) {
+    if (!user || !isSupabaseConfigured) {
+      setClients((prev) => prev.map((row) => (row.id === client.id ? client : row)));
+      return;
+    }
+
+    const { error } = await supabase
+      .from(SUPABASE_TABLES.clients)
+      .update({
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        company: client.company,
+        address: client.address,
+      })
+      .eq('id', client.id)
+      .eq('owner_id', user.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function updateInvoice(invoice: Invoice) {
+    if (!user || !isSupabaseConfigured) {
+      setInvoices((prev) => prev.map((row) => (row.id === invoice.id ? invoice : row)));
+      return;
+    }
+
+    const { error } = await supabase
+      .from(SUPABASE_TABLES.engagements)
+      .update({
+        client_id: invoice.clientId,
+        client_name: invoice.clientName,
+        amount: invoice.amount,
+        tax_amount: invoice.taxAmount,
+        total_amount: invoice.totalAmount,
+        status: invoice.status,
+        due_date: invoice.dueDate.toISOString(),
+        items: invoice.items,
+      })
+      .eq('id', invoice.id)
+      .eq('owner_id', user.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function addComplianceRecord(record: TaxRecord) {
+    if (!user || !isSupabaseConfigured) {
+      setComplianceRecords((prev) => [...prev, record]);
+      return;
+    }
+
+    const { error } = await supabase.from(SUPABASE_TABLES.compliance).insert({
+      id: record.id,
+      owner_id: user.id,
+      type: record.type,
+      period: record.period,
+      amount: record.amount,
+      status: record.status,
+      due_date: record.dueDate.toISOString(),
+      filed_date: record.filedDate?.toISOString() || null,
+      paid_date: record.paidDate?.toISOString() || null,
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async function updateComplianceStatus(recordId: string, status: TaxStatus) {
     const now = new Date().toISOString();
 
@@ -513,7 +591,10 @@ export function AuditDataProvider({ children }: { children: React.ReactNode }) {
         notifications,
         unreadNotificationCount,
         addClient,
+        updateClient,
         addInvoice,
+        updateInvoice,
+        addComplianceRecord,
         deleteClient,
         deleteInvoice,
         updateComplianceStatus,

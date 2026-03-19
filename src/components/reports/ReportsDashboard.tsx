@@ -42,10 +42,49 @@ export function ReportsDashboard() {
     pending: client.pendingAmount,
   }));
 
+  const downloadJSON = (filename: string, data: unknown) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadCSV = (filename: string, rows: Array<Record<string, string | number>>) => {
+    if (!rows.length) {
+      toast({ title: 'No data', description: 'Nothing to export for this section.', variant: 'destructive' });
+      return;
+    }
+
+    const headers = Object.keys(rows[0]);
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => headers.map((header) => JSON.stringify(row[header] ?? '')).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleGenerateReport = () => {
+    downloadJSON(`audit-snapshot-${Date.now()}.json`, {
+      generatedAt: new Date().toISOString(),
+      period: selectedPeriod,
+      revenue: revenueChartData,
+      compliance: complianceDistributionData,
+      clients: clientRevenueData,
+    });
+
     toast({
       title: "Report Generated",
-      description: "Your report is ready for download.",
+      description: "Snapshot exported successfully.",
     });
   };
 
@@ -90,7 +129,11 @@ export function ReportsDashboard() {
                 <p className="text-sm text-muted-foreground">Monthly collections analysis</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCSV('revenue-trend.csv', revenueChartData.map((row) => ({ month: row.month, revenue: row.revenue, invoices: row.invoices })))}
+            >
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
           </div>
@@ -133,7 +176,11 @@ export function ReportsDashboard() {
                 <p className="text-sm text-muted-foreground">Distribution by statutory category</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCSV('compliance-breakdown.csv', complianceDistributionData.map((row) => ({ type: row.name, amount: row.value })))}
+            >
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
           </div>
@@ -173,7 +220,11 @@ export function ReportsDashboard() {
                 <p className="text-sm text-muted-foreground">Billed and outstanding amounts by client</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCSV('client-exposure.csv', clientRevenueData.map((row) => ({ client: row.name, billed: row.revenue, outstanding: row.pending })))}
+            >
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
           </div>
@@ -223,7 +274,7 @@ export function ReportsDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{report.type}</Badge>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => downloadJSON(`${report.id}.json`, report)}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>

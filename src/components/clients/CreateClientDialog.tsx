@@ -33,10 +33,34 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
   };
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.email || !formData.company) {
+    const name = formData.name.trim();
+    const email = formData.email.trim().toLowerCase();
+    const company = formData.company.trim();
+    const phone = formData.phone.trim();
+    const address = formData.address.trim();
+
+    if (!name || !email || !company) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields",
+        title: "Invalid input",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast({
+        title: "Invalid input",
+        description: "Please enter a valid email address.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (phone && !/^[0-9+\-()\s]{7,20}$/.test(phone)) {
+      toast({
+        title: "Invalid input",
+        description: "Phone number format is invalid.",
         variant: "destructive"
       });
       return;
@@ -44,7 +68,11 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
 
     const newClient: Client = {
       id: Date.now().toString(),
-      ...formData,
+      name,
+      email,
+      company,
+      phone,
+      address,
       totalBilled: 0,
       pendingAmount: 0,
       invoiceCount: 0,
@@ -65,7 +93,7 @@ export function CreateClientDialog({ open, onOpenChange, onSubmit }: CreateClien
     
     toast({
       title: "Client Added",
-      description: `${formData.company} has been added successfully.`,
+      description: `${company} has been added successfully.`,
     });
   };
 

@@ -16,11 +16,18 @@ import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const { clients, addClient, deleteClient } = useAuditData();
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [editData, setEditData] = useState({ name: '', company: '', email: '', phone: '', address: '' });
+  const { clients, addClient, updateClient, deleteClient } = useAuditData();
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -47,11 +54,63 @@ export function ClientList() {
     }
   };
 
-  const showComingSoon = () => {
-    toast({
-      title: 'Coming soon',
-      description: 'This action is not implemented yet.',
+  const openViewClient = (client: Client) => {
+    setSelectedClient(client);
+    setIsViewOpen(true);
+  };
+
+  const openEditClient = (client: Client) => {
+    setSelectedClient(client);
+    setEditData({
+      name: client.name,
+      company: client.company,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
     });
+    setIsEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedClient) return;
+
+    const name = editData.name.trim();
+    const company = editData.company.trim();
+    const email = editData.email.trim().toLowerCase();
+    const phone = editData.phone.trim();
+    const address = editData.address.trim();
+
+    if (!name || !company || !email) {
+      toast({ title: 'Invalid input', description: 'Name, company and email are required.', variant: 'destructive' });
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast({ title: 'Invalid input', description: 'Enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    if (phone && !/^[0-9+\-()\s]{7,20}$/.test(phone)) {
+      toast({ title: 'Invalid input', description: 'Phone number format looks invalid.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await updateClient({
+        ...selectedClient,
+        name,
+        company,
+        email,
+        phone,
+        address,
+      });
+
+      setIsEditOpen(false);
+      toast({ title: 'Client updated', description: `${company} has been updated successfully.` });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to update client.';
+      toast({ title: 'Update failed', description: message, variant: 'destructive' });
+    }
   };
 
   return (
@@ -113,10 +172,10 @@ export function ClientList() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => openViewClient(client)}>
                       <Eye className="mr-2 h-4 w-4" /> View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => openEditClient(client)}>
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -168,6 +227,58 @@ export function ClientList() {
         onOpenChange={setIsCreateOpen}
         onSubmit={handleAddClient}
       />
+
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle>Client Details</DialogTitle>
+          </DialogHeader>
+          {selectedClient && (
+            <div className="space-y-3 text-sm">
+              <p><span className="font-medium">Name:</span> {selectedClient.name}</p>
+              <p><span className="font-medium">Company:</span> {selectedClient.company}</p>
+              <p><span className="font-medium">Email:</span> {selectedClient.email}</p>
+              <p><span className="font-medium">Phone:</span> {selectedClient.phone || 'N/A'}</p>
+              <p><span className="font-medium">Address:</span> {selectedClient.address || 'N/A'}</p>
+              <p><span className="font-medium">Outstanding:</span> {formatCurrencyINR(selectedClient.pendingAmount)}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle>Edit Client</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={editData.name} onChange={(e) => setEditData((prev) => ({ ...prev, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Input value={editData.company} onChange={(e) => setEditData((prev) => ({ ...prev, company: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={editData.email} onChange={(e) => setEditData((prev) => ({ ...prev, email: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input value={editData.phone} onChange={(e) => setEditData((prev) => ({ ...prev, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Textarea rows={2} value={editData.address} onChange={(e) => setEditData((prev) => ({ ...prev, address: e.target.value }))} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+              <Button onClick={() => { void handleSaveEdit(); }}>Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

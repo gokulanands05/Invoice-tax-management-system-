@@ -98,6 +98,34 @@ export default function AuthPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast({
+        title: 'Missing email',
+        description: 'Enter your email first, then click Forgot password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      toast({ title: 'Invalid email', description: 'Please enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: getAuthRedirectUrl(),
+    });
+
+    if (error) {
+      toast({ title: 'Reset failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Reset email sent', description: 'Check your inbox for password reset link.' });
+  };
+
   if (authLoading) {
     const isConfirmingEmail = window.location.hash.includes('access_token');
     return (
@@ -155,7 +183,9 @@ export default function AuthPage() {
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
               {!isSignUp && (
-                <a href="#" className="text-xs text-primary hover:underline">Forgot password?</a>
+                <button type="button" className="text-xs text-primary hover:underline" onClick={() => { void handleForgotPassword(); }}>
+                  Forgot password?
+                </button>
               )}
             </div>
             <Input
