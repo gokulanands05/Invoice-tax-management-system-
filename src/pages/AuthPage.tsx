@@ -19,10 +19,24 @@ export default function AuthPage() {
   const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       navigate('/dashboard', { replace: true });
     }
-  }, [navigate, user]);
+  }, [navigate, user, authLoading]);
+
+  // Handle email confirmation redirect from Supabase
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      // Wait a moment for AuthContext to process the session
+      const timer = setTimeout(() => {
+        if (!authLoading) {
+          // Session should be set by now, redirect will happen via above useEffect
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,8 +76,8 @@ export default function AuthPage() {
         }
 
         toast({
-          title: 'Account created',
-          description: 'Supabase created your account. If you still stay on login, check email confirmation settings or confirm the email first.',
+          title: 'Check your email! ✉️',
+          description: 'We sent a confirmation link. Click it to complete signup and access your dashboard.',
         });
         setIsSignUp(false);
         setPassword('');
@@ -85,11 +99,14 @@ export default function AuthPage() {
   };
 
   if (authLoading) {
+    const isConfirmingEmail = window.location.hash.includes('access_token');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background bg-grid">
         <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-background/70 px-6 py-4 shadow-xl backdrop-blur-xl">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Checking your Supabase session...</p>
+          <p className="text-sm text-muted-foreground">
+            {isConfirmingEmail ? 'Confirming your email...' : 'Checking your Supabase session...'}
+          </p>
         </div>
       </div>
     );
