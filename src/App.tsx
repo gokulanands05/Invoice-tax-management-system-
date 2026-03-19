@@ -16,6 +16,8 @@ import Reports from "./pages/Reports";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +79,22 @@ const App = () => (
                   element={
                     <MainLayout>
                       <AIAssistantPage />
+                    </MainLayout>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <MainLayout>
+                      <Profile />
+                    </MainLayout>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <MainLayout>
+                      <Settings />
                     </MainLayout>
                   }
                 />

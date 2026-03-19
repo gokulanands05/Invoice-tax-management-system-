@@ -7,6 +7,8 @@ import {
   Receipt, 
   BarChart3, 
   Bot,
+  User,
+  Settings,
   ChevronLeft,
   ChevronRight,
   Sparkles
@@ -21,6 +23,8 @@ const navItems = [
   { icon: Receipt, label: 'Compliance', path: '/taxes' },
   { icon: BarChart3, label: 'Audit Reports', path: '/reports' },
   { icon: Bot, label: 'Auditor AI', path: '/ai-assistant' },
+  { icon: User, label: 'Profile', path: '/profile' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 export function Sidebar() {
