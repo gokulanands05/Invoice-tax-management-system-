@@ -25,6 +25,7 @@ import { AIExtractorDialog } from './AIExtractorDialog';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function InvoiceTable() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +34,7 @@ export function InvoiceTable() {
   const [aiData, setAiData] = useState<Partial<Invoice> | undefined>(undefined);
   const { invoices, addInvoice, deleteInvoice } = useAuditData();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -125,49 +127,57 @@ export function InvoiceTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredInvoices.map((invoice) => (
-              <TableRow key={invoice.id} className="hover:bg-secondary/50">
-                <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                <TableCell>{invoice.clientName}</TableCell>
-                <TableCell>{formatCurrencyINR(invoice.amount)}</TableCell>
-                <TableCell>{formatCurrencyINR(invoice.taxAmount)}</TableCell>
-                <TableCell className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</TableCell>
-                <TableCell>
-                  <Badge className={cn("text-xs", statusStyles[invoice.status])}>
-                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{format(invoice.dueDate, 'MMM d, yyyy')}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-popover">
-                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
-                        <Eye className="mr-2 h-4 w-4" /> View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
-                        <Download className="mr-2 h-4 w-4" /> Download
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="cursor-pointer text-destructive"
-                        onClick={() => {
-                          void handleDeleteInvoice(invoice.id, invoice.invoiceNumber);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredInvoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                  No bills found for this account. Ensure owner_id matches your auth id: {user?.id || 'Unavailable'}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredInvoices.map((invoice) => (
+                <TableRow key={invoice.id} className="hover:bg-secondary/50">
+                  <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                  <TableCell>{invoice.clientName}</TableCell>
+                  <TableCell>{formatCurrencyINR(invoice.amount)}</TableCell>
+                  <TableCell>{formatCurrencyINR(invoice.taxAmount)}</TableCell>
+                  <TableCell className="font-semibold">{formatCurrencyINR(invoice.totalAmount)}</TableCell>
+                  <TableCell>
+                    <Badge className={cn("text-xs", statusStyles[invoice.status])}>
+                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{format(invoice.dueDate, 'MMM d, yyyy')}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
+                          <Eye className="mr-2 h-4 w-4" /> View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={showComingSoon}>
+                          <Download className="mr-2 h-4 w-4" /> Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-destructive"
+                          onClick={() => {
+                            void handleDeleteInvoice(invoice.id, invoice.invoiceNumber);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

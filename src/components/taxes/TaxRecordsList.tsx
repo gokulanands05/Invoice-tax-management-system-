@@ -20,10 +20,12 @@ import { MoreHorizontal, CheckCircle, FileText, AlertTriangle, Plus } from 'luci
 import { useToast } from '@/hooks/use-toast';
 import { useAuditData } from '@/contexts/AuditDataContext';
 import { formatCurrencyINR } from '@/lib/formatters';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function TaxRecordsList() {
   const { complianceRecords, updateComplianceStatus } = useAuditData();
   const { toast } = useToast();
+  const { user } = useAuth();
   const taxes = complianceRecords;
 
   const handleAddComplianceRecord = () => {
@@ -118,73 +120,81 @@ export function TaxRecordsList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {taxes.map((tax) => {
-              const daysUntilDue = differenceInDays(tax.dueDate, new Date());
-              const isUrgent = tax.status === 'pending' && daysUntilDue <= 7;
-              
-              return (
-                <TableRow key={tax.id} className={cn("hover:bg-secondary/50", isUrgent && "bg-warning/5")}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
-                      {tax.type}
-                    </div>
-                  </TableCell>
-                  <TableCell>{tax.period}</TableCell>
-                  <TableCell className="font-semibold">{formatCurrencyINR(tax.amount)}</TableCell>
-                  <TableCell>
-                    <span className={cn(isUrgent && "text-warning font-medium")}>
-                      {format(tax.dueDate, 'MMM d, yyyy')}
-                    </span>
-                    {isUrgent && <span className="block text-xs text-warning">{daysUntilDue} days left</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn("text-xs", statusStyles[tax.status])}>
-                      {tax.status.charAt(0).toUpperCase() + tax.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {tax.paidDate ? format(tax.paidDate, 'MMM d, yyyy') : 
-                     tax.filedDate ? format(tax.filedDate, 'MMM d, yyyy') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-popover">
-                        {tax.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem 
-                              className="cursor-pointer"
-                              onClick={() => handleMarkAsFiled(tax.id)}
-                            >
-                              <FileText className="mr-2 h-4 w-4" /> Mark as Filed
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
+            {taxes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  No compliance records found for this account. Ensure owner_id matches your auth id: {user?.id || 'Unavailable'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              taxes.map((tax) => {
+                const daysUntilDue = differenceInDays(tax.dueDate, new Date());
+                const isUrgent = tax.status === 'pending' && daysUntilDue <= 7;
+
+                return (
+                  <TableRow key={tax.id} className={cn("hover:bg-secondary/50", isUrgent && "bg-warning/5")}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
+                        {tax.type}
+                      </div>
+                    </TableCell>
+                    <TableCell>{tax.period}</TableCell>
+                    <TableCell className="font-semibold">{formatCurrencyINR(tax.amount)}</TableCell>
+                    <TableCell>
+                      <span className={cn(isUrgent && "text-warning font-medium")}>
+                        {format(tax.dueDate, 'MMM d, yyyy')}
+                      </span>
+                      {isUrgent && <span className="block text-xs text-warning">{daysUntilDue} days left</span>}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("text-xs", statusStyles[tax.status])}>
+                        {tax.status.charAt(0).toUpperCase() + tax.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {tax.paidDate ? format(tax.paidDate, 'MMM d, yyyy') :
+                       tax.filedDate ? format(tax.filedDate, 'MMM d, yyyy') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          {tax.status === 'pending' && (
+                            <>
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => handleMarkAsFiled(tax.id)}
+                              >
+                                <FileText className="mr-2 h-4 w-4" /> Mark as Filed
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => handleMarkAsPaid(tax.id)}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {tax.status === 'filed' && (
+                            <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={() => handleMarkAsPaid(tax.id)}
                             >
                               <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
                             </DropdownMenuItem>
-                          </>
-                        )}
-                        {tax.status === 'filed' && (
-                          <DropdownMenuItem 
-                            className="cursor-pointer"
-                            onClick={() => handleMarkAsPaid(tax.id)}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
